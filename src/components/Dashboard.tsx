@@ -1,29 +1,57 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { members, contributions, loans, monthlyTrend, fundBreakdown } from '../data/store';
-
-const statCards = [
-  { label: 'Total Fund', value: 'KSh 1,847,500', sub: '+KSh 60,000 this month', icon: '💰', color: 'from-green-500 to-emerald-600', textColor: 'text-green-50' },
-  { label: 'Active Members', value: '24 Members', sub: '22 active · 2 inactive', icon: '👥', color: 'from-blue-500 to-blue-700', textColor: 'text-blue-50' },
-  { label: 'Loans Outstanding', value: 'KSh 420,000', sub: '4 active loans', icon: '🏦', color: 'from-orange-500 to-orange-700', textColor: 'text-orange-50' },
-  { label: 'Interest Earned', value: 'KSh 75,000', sub: 'This financial year', icon: '📈', color: 'from-purple-500 to-purple-700', textColor: 'text-purple-50' },
-];
+import { useData } from '../data/context';
+import { useAuth } from '../data/auth-context';
+import { DEFAULT_INTEREST_RATE } from '../data/constants';
 
 function formatKsh(n: number) {
   return `KSh ${n.toLocaleString()}`;
 }
 
 export default function Dashboard() {
-  const paidCount = contributions.filter(c => c.status === 'paid').length;
+  const { user } = useAuth();
+  const { chama, members, contributions, loans, meetings, loading } = useData();
+  
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
+
+  const activeMembers = members.filter(m => m.status === 'active');
+  const totalPaid = contributions.filter(c => c.status === 'paid').reduce((s, c) => s + c.amount, 0);
+  const activeLoans = loans.filter(l => l.status === 'active');
+  const totalOutstanding = loans.filter(l => l.status !== 'paid').reduce((s, l) => s + l.balance, 0);
   const overdueLoans = loans.filter(l => l.status === 'overdue');
-  const upcomingMeeting = { title: 'December Monthly Meeting', date: 'Sat, Dec 7 · 10:00 AM', venue: 'David\'s Office, CBD' };
+  const upcomingMeeting = meetings.find(m => m.status === 'upcoming');
+
+  const monthlyContributions = contributions.reduce<Record<string, number>>((acc, c) => {
+    if (c.status === 'paid') {
+      acc[c.month] = (acc[c.month] || 0) + c.amount;
+    }
+    return acc;
+  }, {});
+  const monthlyTrend = Object.entries(monthlyContributions).slice(-6).map(([month, amount]) => ({
+    month: month.split(' ')[0].slice(0, 3),
+    contributions: amount,
+    interest: Math.round(amount * (chama?.loanInterestRate ?? DEFAULT_INTEREST_RATE) / 100),
+  }));
+
+  const trendKeys = Object.keys(monthlyContributions).slice(-6);
+  const rangeLabel = trendKeys.length > 0
+    ? `${trendKeys[0].split(' ')[0].slice(0, 3)} – ${trendKeys[trendKeys.length - 1].split(' ')[0].slice(0, 3)} ${trendKeys[trendKeys.length - 1].split(' ')[1]}`
+    : '';
+
+  const totalFund = totalPaid;
+  const loansOut = totalOutstanding;
+  const fundBreakdown = [
+    { name: 'Available Fund', value: Math.max(totalFund - loansOut, 0), color: '#16a34a' },
+    { name: 'Loans Outstanding', value: loansOut, color: '#f59e0b' },
+    { name: `Reserves (${chama?.loanInterestRate ?? DEFAULT_INTEREST_RATE}%)`, value: Math.round(totalFund * 0.05), color: '#64748b' },
+  ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Good morning, Grace 👋</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Umoja Wetu Investment Group · November 2024</p>
+          <h1 className="text-2xl font-black text-gray-900">Good morning, {user?.email?.split('@')[0] || 'Admin'} 👋</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{chama?.name || 'Your Chama'} · Active Members: {activeMembers.length}</p>
         </div>
         <div className="flex gap-2">
           <button className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all shadow-sm">
@@ -37,16 +65,10 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map(card => (
-          <div key={card.label} className={`bg-gradient-to-br ${card.color} rounded-2xl p-5 text-white shadow-lg`}>
-            <div className="flex items-start justify-between mb-3">
-              <div className={`text-sm font-medium ${card.textColor} opacity-80`}>{card.label}</div>
-              <span className="text-2xl">{card.icon}</span>
-            </div>
-            <div className="text-2xl font-black">{card.value}</div>
-            <div className={`text-xs mt-1 ${card.textColor} opacity-70`}>{card.sub}</div>
-          </div>
-        ))}
+        <StatCard label="Total Fund" value={formatKsh(totalFund)} sub={`${contributions.length} contributions`} icon="💰" color="from-green-500 to-emerald-600" textColor="text-green-50" />
+        <StatCard label="Active Members" value={`${activeMembers.length}`} sub={`${members.length - activeMembers.length} inactive`} icon="👥" color="from-blue-500 to-blue-700" textColor="text-blue-50" />
+        <StatCard label="Loans Outstanding" value={formatKsh(totalOutstanding)} sub={`${activeLoans.length} active loans`} icon="🏦" color="from-orange-500 to-orange-700" textColor="text-orange-50" />
+        <StatCard label="Collections" value={formatKsh(totalPaid)} sub="All time" icon="📈" color="from-purple-500 to-purple-700" textColor="text-purple-50" />
       </div>
 
       {/* Alerts */}
@@ -69,7 +91,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-bold text-gray-900">Fund Growth Trend</h3>
-              <p className="text-xs text-gray-500">Jun – Nov 2024</p>
+              <p className="text-xs text-gray-500">{rangeLabel}</p>
             </div>
             <div className="flex gap-4 text-xs text-gray-500">
               <span className="flex items-center gap-1"><span className="w-3 h-1.5 bg-green-500 rounded inline-block"></span>Contributions</span>
@@ -101,7 +123,7 @@ export default function Dashboard() {
         {/* Pie chart */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h3 className="font-bold text-gray-900 mb-1">Fund Allocation</h3>
-          <p className="text-xs text-gray-500 mb-4">Total: KSh 1,847,500</p>
+          <p className="text-xs text-gray-500 mb-4">Total: {formatKsh(totalFund)}</p>
           <div className="flex justify-center">
             <PieChart width={160} height={160}>
               <Pie data={fundBreakdown} cx={75} cy={75} innerRadius={45} outerRadius={75} dataKey="value" strokeWidth={2}>
@@ -112,13 +134,13 @@ export default function Dashboard() {
             </PieChart>
           </div>
           <div className="space-y-2 mt-2">
-            {fundBreakdown.map(item => (
+            {fundBreakdown.filter(i => i.value > 0).map(item => (
               <div key={item.name} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></div>
                   <span className="text-gray-600 text-xs">{item.name}</span>
                 </div>
-                <span className="font-bold text-gray-800 text-xs">KSh {item.value.toLocaleString()}</span>
+                <span className="font-bold text-gray-800 text-xs">{formatKsh(item.value)}</span>
               </div>
             ))}
           </div>
@@ -127,11 +149,11 @@ export default function Dashboard() {
 
       {/* Bottom row */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* November contribution status */}
+        {/* Recent contributions */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900">November Contributions</h3>
-            <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full">{paidCount}/{contributions.length} paid</span>
+            <h3 className="font-bold text-gray-900">Recent Contributions</h3>
+            <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full">{contributions.filter(c => c.status === 'paid').length}/{contributions.length} paid</span>
           </div>
           <div className="space-y-2">
             {contributions.slice(0, 8).map(c => (
@@ -161,9 +183,9 @@ export default function Dashboard() {
           {/* Upcoming meeting */}
           <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 text-white">
             <div className="text-blue-200 text-xs font-bold uppercase tracking-widest mb-2">📅 Next Meeting</div>
-            <div className="font-black text-lg">{upcomingMeeting.title}</div>
-            <div className="text-blue-200 text-sm mt-1">{upcomingMeeting.date}</div>
-            <div className="text-blue-200 text-sm">{upcomingMeeting.venue}</div>
+            <div className="font-black text-lg">{upcomingMeeting?.title || 'No upcoming meeting'}</div>
+            <div className="text-blue-200 text-sm mt-1">{upcomingMeeting?.date || ''}</div>
+            <div className="text-blue-200 text-sm">{upcomingMeeting?.venue || ''}</div>
             <div className="mt-4 flex gap-2">
               <button className="bg-white text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 View Agenda
@@ -210,6 +232,21 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub, icon, color, textColor }: {
+  label: string; value: string; sub: string; icon: string; color: string; textColor: string;
+}) {
+  return (
+    <div className={`bg-gradient-to-br ${color} rounded-2xl p-5 text-white shadow-lg`}>
+      <div className="flex items-start justify-between mb-3">
+        <div className={`text-sm font-medium ${textColor} opacity-80`}>{label}</div>
+        <span className="text-2xl">{icon}</span>
+      </div>
+      <div className="text-2xl font-black">{value}</div>
+      <div className={`text-xs mt-1 ${textColor} opacity-70`}>{sub}</div>
     </div>
   );
 }

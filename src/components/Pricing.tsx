@@ -1,16 +1,85 @@
 import { useState } from 'react';
-import { plans } from '../data/store';
+import { plans } from '../data/types';
+import { mpesa } from '../data/mpesa';
+import { supabase } from '../data/supabase';
+import { useAuth } from '../data/auth-context';
+import { useToast } from '../data/toast-context';
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 export default function Pricing() {
+  const { user } = useAuth();
+  const toast = useToast();
   const [billingAnnual, setBillingAnnual] = useState(false);
   const [showMpesa, setShowMpesa] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('');
   const [mpesaStep, setMpesaStep] = useState(0);
+  const [mpesaPhone, setMpesaPhone] = useState('0712 345 678');
+  const [mpesaSending, setMpesaSending] = useState(false);
 
   const handleUpgrade = (planName: string) => {
     setSelectedPlan(planName);
     setShowMpesa(true);
     setMpesaStep(0);
+    setMpesaSending(false);
+  };
+
+  const handleStripeCheckout = async (planId: string) => {
+    if (!stripePromise) {
+      toast.error('Stripe Not Available', 'Add VITE_STRIPE_PUBLISHABLE_KEY to .env.local');
+      return;
+    }
+
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            plan: planId,
+            email: user?.email,
+            chamaId: user?.chamaId,
+          }),
+        },
+      );
+
+      if (!response.ok) throw new Error('Checkout failed');
+
+      const { url } = await response.json();
+      if (url) window.location.href = url;
+    } catch (err) {
+      console.error('Stripe checkout error:', err);
+      toast.error('Checkout Unavailable', 'Please try M-Pesa instead.');
+    }
+  };
+
+  const handleMpesaStkPush = async () => {
+    if (!mpesaPhone || mpesaSending) return;
+    setMpesaSending(true);
+    try {
+      const result = await mpesa.stkPush(
+        mpesaPhone.replace(/[^0-9]/g, ''),
+        plans.find(p => p.name === selectedPlan)?.price || 1999,
+        `ChamaOS ${selectedPlan} Plan`,
+      );
+      if (result.success) {
+        setMpesaStep(2);
+      } else {
+        setMpesaSending(false);
+      }
+    } catch {
+      setMpesaSending(false);
+    }
   };
 
   const colorMap: Record<string, { border: string; btn: string; badge: string; text: string }> = {
@@ -62,7 +131,7 @@ export default function Pricing() {
           <span className="text-2xl">📋</span>
           <div>
             <div className="font-bold">You're on the Starter Plan</div>
-            <div className="text-green-200 text-sm">Next billing: December 1, 2024 · KSh 999 via M-Pesa</div>
+            <div className="text-green-200 text-sm">Subscription active</div>
           </div>
         </div>
         <span className="bg-white/20 text-white text-sm font-bold px-3 py-1 rounded-full">ACTIVE</span>
@@ -98,14 +167,30 @@ export default function Pricing() {
                   </li>
                 ))}
               </ul>
-              <button
-                onClick={() => !isCurrent && plan.price > 0 && handleUpgrade(plan.name)}
-                className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
-                  isCurrent ? 'bg-gray-100 text-gray-400 cursor-default' : colors.btn
-                }`}
-              >
-                {isCurrent ? '✓ Current Plan' : plan.cta}
-              </button>
+              {isCurrent ? (
+                <button className="w-full py-2.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-400 cursor-default">
+                  ✓ Current Plan
+                </button>
+              ) : plan.price === 0 ? (
+                <button className="w-full py-2.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-400 cursor-default">
+                  Free Plan
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleUpgrade(plan.name)}
+                    className={`w-full py-2.5 rounded-xl font-bold text-sm ${colors.btn}`}
+                  >
+                    📱 Pay via M-Pesa
+                  </button>
+                  <button
+                    onClick={() => handleStripeCheckout(plan.id || plan.name.toLowerCase())}
+                    className={`w-full py-2.5 rounded-xl font-bold text-sm ${import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? colors.btn : 'bg-gray-300 text-gray-500'}`}
+                  >
+                    💳 Pay with Card
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -155,46 +240,25 @@ export default function Pricing() {
             <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black mx-auto mb-4">M</div>
             <h2 className="font-black text-gray-900 text-xl mb-1">Pay via M-Pesa</h2>
             <p className="text-gray-500 text-sm mb-4">Upgrading to {selectedPlan} Plan</p>
-
-            {mpesaStep === 0 && (
-              <>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-left mb-4 space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-gray-500">Plan</span><span className="font-bold">{selectedPlan}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Amount</span><span className="font-bold text-green-700">KSh {plans.find(p => p.name === selectedPlan)?.price.toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Paybill</span><span className="font-bold font-mono">247247</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Account</span><span className="font-bold font-mono">CHAMAOS</span></div>
-                </div>
-                <button onClick={() => setMpesaStep(1)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
-                  📱 Send STK Push to My Phone
-                </button>
-                <p className="text-xs text-gray-400 mt-3">Or pay manually via Paybill 247247, Account: CHAMAOS</p>
-              </>
-            )}
-            {mpesaStep === 1 && (
-              <>
-                <div className="my-4 text-4xl animate-bounce">📱</div>
-                <p className="text-gray-700 font-semibold mb-2">Check your phone!</p>
-                <p className="text-gray-500 text-sm mb-4">We've sent an M-Pesa prompt to <strong>0712 345 678</strong>. Enter your PIN to complete payment.</p>
-                <div className="w-10 h-10 border-4 border-gray-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-                <button onClick={() => setMpesaStep(2)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
-                  I've Entered My PIN →
-                </button>
-              </>
-            )}
-            {mpesaStep === 2 && (
-              <>
-                <div className="text-5xl my-4">🎉</div>
-                <p className="text-gray-900 font-black text-lg mb-1">Payment Confirmed!</p>
-                <p className="text-gray-500 text-sm mb-2">Ref: MPE{Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}</p>
-                <p className="text-green-700 font-semibold text-sm mb-5">Welcome to ChamaOS {selectedPlan} Plan! 🚀</p>
-                <button onClick={() => { setShowMpesa(false); setMpesaStep(0); }} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
-                  Start Using {selectedPlan} Features →
-                </button>
-              </>
-            )}
-            {mpesaStep < 2 && (
-              <button onClick={() => setShowMpesa(false)} className="mt-3 text-sm text-gray-400 hover:text-gray-600 w-full">Cancel</button>
-            )}
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-left mb-4 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Plan</span><span className="font-bold">{selectedPlan}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Amount</span><span className="font-bold text-green-700">KSh {(plans.find(p => p.name === selectedPlan)?.price || 0).toLocaleString()}</span></div>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
+              <div className="text-xs text-gray-500 mb-1">Send M-Pesa to</div>
+              <div className="text-xl font-black text-gray-900 tracking-wider">0797 132 940</div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-800 mb-4 text-left">
+              <strong>Instructions:</strong><br />
+              1. Go to M-Pesa &gt; Lipa na M-Pesa &gt; Send Money<br />
+              2. Enter <strong>0797 132 940</strong> as the number<br />
+              3. Enter amount <strong>KSh {(plans.find(p => p.name === selectedPlan)?.price || 0).toLocaleString()}</strong><br />
+              4. Enter your M-Pesa PIN and confirm<br />
+              5. Your account will be upgraded within 24 hours
+            </div>
+            <button onClick={() => { setShowMpesa(false); setMpesaStep(0); }} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
+              I'll Pay Later
+            </button>
           </div>
         </div>
       )}

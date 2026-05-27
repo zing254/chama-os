@@ -1,25 +1,30 @@
 import { useState } from 'react';
-import { contributions, members, addContribution } from '../data/store';
+import { useData } from '../data/context';
+import { DEFAULT_MONTHLY_CONTRIBUTION } from '../data/constants';
 
 export default function Contributions() {
-  const [filterMonth, setFilterMonth] = useState('November 2024');
+  const { chama, contributions, members, loading, addContribution } = useData();
+  const [filterMonth, setFilterMonth] = useState(new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
   const [filterStatus, setFilterStatus] = useState('all');
   const [showRecord, setShowRecord] = useState(false);
   const [showMpesa, setShowMpesa] = useState(false);
   const [mpesaStep, setMpesaStep] = useState(0);
-  
-  const [newContribution, setNewContribution] = useState({
-    memberId: '',
-    amount: 5000,
-    mpesaRef: '',
-    type: 'monthly' as const,
-    status: 'paid' as const,
-    date: new Date().toISOString().split('T')[0],
-  });
   const [contribError, setContribError] = useState('');
   const [contribSuccess, setContribSuccess] = useState(false);
+  const [newContribution, setNewContribution] = useState({
+    memberId: '',
+    amount: chama?.monthlyContribution || DEFAULT_MONTHLY_CONTRIBUTION,
+    mpesaRef: '',
+    type: 'monthly' as const,
+    status: 'pending' as const,
+    date: new Date().toISOString().split('T')[0],
+  });
 
-  const months = ['November 2024', 'October 2024', 'September 2024', 'August 2024'];
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  });
 
   const filtered = contributions.filter(c => {
     const matchMonth = c.month === filterMonth;
@@ -28,6 +33,8 @@ export default function Contributions() {
   });
 
   const totalCollected = contributions.filter(c => c.status === 'paid').reduce((s, c) => s + c.amount, 0);
+
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
   const totalPending = contributions.filter(c => c.status !== 'paid').reduce((s, c) => s + c.amount, 0);
   const paidCount = contributions.filter(c => c.status === 'paid').length;
   const collectionRate = Math.round((paidCount / contributions.length) * 100);
@@ -61,7 +68,7 @@ export default function Contributions() {
           { label: 'Collected', value: `KSh ${totalCollected.toLocaleString()}`, icon: '✅', color: 'from-green-500 to-emerald-600' },
           { label: 'Pending', value: `KSh ${totalPending.toLocaleString()}`, icon: '⏳', color: 'from-yellow-500 to-orange-500' },
           { label: 'Collection Rate', value: `${collectionRate}%`, icon: '📊', color: 'from-blue-500 to-blue-700' },
-          { label: 'This Month Target', value: `KSh ${(contributions.length * 5000).toLocaleString()}`, icon: '🎯', color: 'from-purple-500 to-purple-700' },
+          { label: 'This Month Target', value: `KSh ${(contributions.length * (chama?.monthlyContribution || 5000)).toLocaleString()}`, icon: '🎯', color: 'from-purple-500 to-purple-700' },
         ].map(s => (
           <div key={s.label} className={`bg-gradient-to-br ${s.color} rounded-2xl p-4 text-white`}>
             <div className="text-2xl mb-2">{s.icon}</div>
@@ -74,7 +81,7 @@ export default function Contributions() {
       {/* Progress bar */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-2">
-          <div className="font-bold text-gray-900">November Collection Progress</div>
+          <div className="font-bold text-gray-900">{filterMonth} Collection Progress</div>
           <span className="text-lg font-black text-green-600">{collectionRate}%</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-4">
@@ -164,68 +171,19 @@ export default function Contributions() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center">
             <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black mx-auto mb-4">M</div>
-            <h2 className="font-black text-gray-900 text-xl mb-2">M-Pesa Sync</h2>
-            {mpesaStep === 0 && (
-              <>
-                <p className="text-gray-500 text-sm mb-6">We'll pull all contributions paid to your Paybill in the last 30 days and auto-match them to members.</p>
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-left mb-4">
-                  <div className="text-xs font-bold text-green-800">Paybill: 247247</div>
-                  <div className="text-xs text-green-600">Account: UMOJAWETU</div>
-                </div>
-                <button onClick={handleMpesaNext} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
-                  Start Sync
-                </button>
-              </>
-            )}
-            {mpesaStep === 1 && (
-              <>
-                <div className="my-6">
-                  <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto"></div>
-                  <p className="text-gray-600 text-sm mt-4">Connecting to M-Pesa Daraja API...</p>
-                </div>
-                <button onClick={handleMpesaNext} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
-                  Continue
-                </button>
-              </>
-            )}
-            {mpesaStep === 2 && (
-              <>
-                <p className="text-green-600 font-bold text-sm mb-4">✅ Sync Complete! Found 9 matching transactions</p>
-                <div className="space-y-2 text-left mb-4">
-                  {[
-                    { name: 'Grace W.', ref: 'QHJ4K7P2X1', amount: 5000 },
-                    { name: 'David O.', ref: 'QHJ4K7P2X2', amount: 5000 },
-                    { name: 'Faith N.', ref: 'QHJ4K7P2X3', amount: 5000 },
-                  ].map(t => (
-                    <div key={t.ref} className="flex items-center justify-between bg-green-50 rounded-lg p-2.5 text-sm">
-                      <span className="font-semibold text-gray-800">{t.name}</span>
-                      <span className="text-xs text-gray-500 font-mono">{t.ref}</span>
-                      <span className="font-bold text-green-700">KSh {t.amount.toLocaleString()}</span>
-                    </div>
-                  ))}
-                  <div className="text-xs text-center text-gray-400">...and 6 more</div>
-                </div>
-                <button onClick={handleMpesaNext} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
-                  Apply All Matches
-                </button>
-              </>
-            )}
-            {mpesaStep === 3 && (
-              <>
-                <div className="text-5xl my-4">🎉</div>
-                <p className="text-gray-800 font-bold mb-1">9 payments recorded!</p>
-                <p className="text-gray-500 text-sm mb-6">KSh 45,000 matched and posted to members' accounts.</p>
-                <button onClick={() => { setShowMpesa(false); setMpesaStep(0); }} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
-                  Done ✓
-                </button>
-              </>
-            )}
-            {mpesaStep < 3 && mpesaStep > 0 && (
-              <button onClick={() => { setShowMpesa(false); setMpesaStep(0); }} className="mt-3 text-sm text-gray-400 hover:text-gray-600 w-full">Cancel</button>
-            )}
-            {mpesaStep === 0 && (
-              <button onClick={() => setShowMpesa(false)} className="mt-3 text-sm text-gray-400 hover:text-gray-600 w-full">Cancel</button>
-            )}
+            <h2 className="font-black text-gray-900 text-xl mb-2">Manual M-Pesa Collection</h2>
+            <p className="text-gray-500 text-sm mb-6">Ask members to send their contribution to the number below, then record the payment manually.</p>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+              <div className="text-xs text-gray-500 mb-1">Send to</div>
+              <div className="text-2xl font-black text-gray-900 tracking-wider">0797 132 940</div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-800 mb-4">
+              💡 Ask the member to send you their M-Pesa confirmation code (e.g. QHJ4K7P2X1) so you can record it in the system.
+            </div>
+            <button onClick={() => { setShowMpesa(false); setShowRecord(true); }} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors mb-2">
+              + Record a Payment
+            </button>
+            <button onClick={() => setShowMpesa(false)} className="text-sm text-gray-400 hover:text-gray-600 w-full">Close</button>
           </div>
         </div>
       )}
@@ -236,7 +194,7 @@ export default function Contributions() {
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-black text-gray-900 text-lg">Record Manual Payment</h2>
-              <button onClick={() => { setShowRecord(false); setContribError(''); setContribSuccess(false); }} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+              <button onClick={() => { setShowRecord(false); setContribError(''); setContribSuccess(false); setMpesaStep(0); }} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
             </div>
             {contribSuccess && (
               <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 mb-4 text-sm font-semibold">
@@ -292,6 +250,9 @@ export default function Contributions() {
                   <option value="special">Special Levy</option>
                 </select>
               </div>
+              <div className="text-xs text-gray-400 text-center mt-2">
+                Status will be set to <strong>Pending</strong>. Mark as paid after member confirms receipt.
+              </div>
               <button 
                 onClick={() => {
                   if (!newContribution.memberId) {
@@ -315,14 +276,15 @@ export default function Contributions() {
                       setContribSuccess(false);
                       setNewContribution({
                         memberId: '',
-                        amount: 5000,
+                        amount: chama?.monthlyContribution || DEFAULT_MONTHLY_CONTRIBUTION,
                         mpesaRef: '',
                         type: 'monthly',
-                        status: 'paid',
+                        status: 'pending',
                         date: new Date().toISOString().split('T')[0],
                       });
                     }, 1500);
                   } catch (err) {
+                    console.error('Failed to record payment:', err);
                     setContribError('Failed to record payment');
                   }
                 }}

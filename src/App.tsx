@@ -1,147 +1,91 @@
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { PageLoading } from './components/Loading';
-import { ToastProvider } from './components/Toast';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './data/auth-context';
+import { AdminProvider } from './data/admin-context';
+import { DataProvider } from './data/context';
+import { AuthProvider } from './data/auth-context';
+import { I18nProvider } from './data/i18n-context';
+import { ToastProvider } from './data/toast-context';
+import ErrorBoundary from './components/ErrorBoundary';
+import ToastContainer from './components/ToastContainer';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
-const LandingPage = lazy(() => import('./components/LandingPage'));
-const Sidebar = lazy(() => import('./components/Sidebar'));
-const Dashboard = lazy(() => import('./components/Dashboard'));
-const Members = lazy(() => import('./components/Members'));
-const Contributions = lazy(() => import('./components/Contributions'));
-const Loans = lazy(() => import('./components/Loans'));
-const Meetings = lazy(() => import('./components/Meetings'));
-const Analytics = lazy(() => import('./components/Analytics'));
-const Pricing = lazy(() => import('./components/Pricing'));
-const Settings = lazy(() => import('./components/Settings'));
+const LandingPage = React.lazy(() => import('./components/LandingPage'));
+const AppLayout = React.lazy(() => import('./components/AppLayout'));
+const AdminLogin = React.lazy(() => import('./components/admin/AdminLogin'));
+const AdminLayout = React.lazy(() => import('./components/admin/AdminLayout'));
+const MemberLayout = React.lazy(() => import('./components/member/MemberLayout'));
+const Login = React.lazy(() => import('./components/auth/Login'));
+const Signup = React.lazy(() => import('./components/auth/Signup'));
+const AuthCallback = React.lazy(() => import('./components/auth/AuthCallback'));
 
-type Page = 'dashboard' | 'members' | 'contributions' | 'loans' | 'meetings' | 'analytics' | 'settings' | 'pricing';
+function RoutePage({ title, children }: { title: string; children: React.ReactNode }) {
+  React.useEffect(() => {
+    document.title = title
+      ? `${title} — ChamaOS`
+      : "ChamaOS — Kenya's #1 Chama Management Platform";
+  }, [title]);
+  return <>{children}</>;
+}
 
-const pageComponents: Record<Page, React.ReactNode> = {
-  dashboard: Dashboard,
-  members: Members,
-  contributions: Contributions,
-  loans: Loans,
-  meetings: Meetings,
-  analytics: Analytics,
-  pricing: Pricing,
-  settings: Settings,
-};
+function Loading() {
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
-const pageTitles: Record<Page, string> = {
-  dashboard: 'Dashboard',
-  members: 'Members',
-  contributions: 'Contributions',
-  loans: 'Loans',
-  meetings: 'Meetings',
-  analytics: 'Analytics',
-  pricing: 'Upgrade Plan',
-  settings: 'Settings',
-};
+function ProtectedAdminRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <Loading />;
+  if (!user || user.role !== 'admin') return <Navigate to="/admin/login" replace />;
+  return <AdminLayout />;
+}
+
+function ProtectedMemberRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <Loading />;
+  if (!user || user.role !== 'member') return <Navigate to="/login" replace />;
+  return <MemberLayout />;
+}
 
 export default function App() {
-  const [appState, setAppState] = useState<'landing' | 'app'>('landing');
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    if (location.pathname !== '/') {
-      setAppState('app');
-      const page = location.pathname.slice(1) as Page;
-      if (pageComponents[page]) {
-        setCurrentPage(page);
-      }
-    }
-  }, [location]);
-
-  const handleNavigate = (page: Page) => {
-    setCurrentPage(page);
-    navigate(`/${page}`);
-  };
-
-  const handleEnterApp = () => {
-    setAppState('app');
-    navigate('/dashboard');
-  };
-
-  const handleGoHome = () => {
-    setAppState('landing');
-    navigate('/');
-  };
-
   return (
-    <ToastProvider>
-      {appState === 'landing' ? (
-        <Suspense fallback={<PageLoading />}>
-          <LandingPage onEnterApp={handleEnterApp} />
-        </Suspense>
-      ) : (
-        <div className="flex h-screen bg-gray-50 overflow-hidden font-inter">
-          <Suspense fallback={<PageLoading />}>
-            <Sidebar
-              currentPage={currentPage}
-              onNavigate={handleNavigate}
-              onGoHome={handleGoHome}
-              sidebarOpen={sidebarOpen}
-              setSidebarOpen={setSidebarOpen}
-            />
-          </Suspense>
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <header className="bg-white border-b border-gray-100 px-4 sm:px-6 h-14 flex items-center justify-between shrink-0 shadow-sm">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-600 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </button>
-
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-sm hidden sm:block">ChamaOS</span>
-                    <span className="text-gray-400 text-sm hidden sm:block">/</span>
-                    <span className="font-bold text-gray-900 text-sm">{pageTitles[currentPage]}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="hidden sm:flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs font-bold px-2.5 py-1.5 rounded-full">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                  M-Pesa Live
-                </div>
-
-                <div className="relative">
-                  <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-600 transition-colors">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                  </button>
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                </div>
-
-                <button className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-black">
-                  GW
-                </button>
-              </div>
-            </header>
-
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <div className="max-w-7xl mx-auto">
-                <Suspense fallback={<PageLoading />}>
-                  {(() => {
-                    const PageComponent = pageComponents[currentPage];
-                    return <PageComponent />;
-                  })()}
-                </Suspense>
-              </div>
-            </main>
-          </div>
-        </div>
-      )}
-    </ToastProvider>
+    <BrowserRouter>
+      <ErrorBoundary>
+        <I18nProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <AdminProvider>
+                <DataProvider>
+                  <React.Suspense fallback={<Loading />}>
+                    <Routes>
+                      <Route path="/" element={<ErrorBoundary><RoutePage title=""><LandingPage /></RoutePage></ErrorBoundary>} />
+                      <Route path="/login" element={<ErrorBoundary><RoutePage title="Sign In"><Login /></RoutePage></ErrorBoundary>} />
+                      <Route path="/signup" element={<ErrorBoundary><RoutePage title="Sign Up"><Signup /></RoutePage></ErrorBoundary>} />
+                      <Route path="/auth/callback" element={<ErrorBoundary><RoutePage title=""><AuthCallback /></RoutePage></ErrorBoundary>} />
+                      <Route path="/dashboard" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Dashboard"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
+                      <Route path="/members" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Members"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
+                      <Route path="/contributions" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Contributions"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
+                      <Route path="/loans" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Loans"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
+                      <Route path="/meetings" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Meetings"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
+                      <Route path="/analytics" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Analytics"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
+                      <Route path="/settings" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Settings"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
+                      <Route path="/pricing" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Pricing"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
+                      <Route path="/member/*" element={<ErrorBoundary><RoutePage title="Member Dashboard"><ProtectedMemberRoute /></RoutePage></ErrorBoundary>} />
+                      <Route path="/admin/login" element={<ErrorBoundary><RoutePage title="Admin Login"><AdminLogin /></RoutePage></ErrorBoundary>} />
+                      <Route path="/admin/*" element={<ErrorBoundary><RoutePage title="Admin Panel"><ProtectedAdminRoute /></RoutePage></ErrorBoundary>} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </React.Suspense>
+                  <ToastContainer />
+                </DataProvider>
+              </AdminProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </I18nProvider>
+      </ErrorBoundary>
+    </BrowserRouter>
   );
 }

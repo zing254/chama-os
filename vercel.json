@@ -1,8 +1,24 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+  "routes": [
+    { "handle": "filesystem" },
+    {
+      "src": "/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Content-Type": "text/html"
+      },
+      "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    }
   ]
 }

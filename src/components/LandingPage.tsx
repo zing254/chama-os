@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { plans } from '../data/store';
-
-type Props = { onEnterApp: () => void };
+import { useNavigate } from 'react-router-dom';
+import { plans } from '../data/types';
 
 const features = [
   {
@@ -71,7 +70,9 @@ const stats = [
   { value: '85%', label: 'Still using spreadsheets' },
 ];
 
-export default function LandingPage({ onEnterApp }: Props) {
+export default function LandingPage() {
+  const navigate = useNavigate();
+  const onEnterApp = () => navigate('/login');
   const [billingAnnual, setBillingAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -346,7 +347,7 @@ export default function LandingPage({ onEnterApp }: Props) {
               );
             })}
           </div>
-          <p className="text-center text-gray-500 text-sm mt-8">All plans include 30-day free trial. Pay via M-Pesa Paybill 247247.</p>
+          <p className="text-center text-gray-500 text-sm mt-8">All plans include 30-day free trial. Pay via M-Pesa to 0797 132 940.</p>
         </div>
       </section>
 

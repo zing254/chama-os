@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { members, Member, addMember } from '../data/store';
+import { Member } from '../data/types';
+import { useData } from '../data/context';
 
 const roleColors: Record<string, string> = {
   chairman: 'bg-yellow-100 text-yellow-800',
@@ -16,6 +17,7 @@ const roleIcons: Record<string, string> = {
 };
 
 export default function Members() {
+  const { members, loading, addMember } = useData();
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -38,6 +40,8 @@ export default function Members() {
 
   const totalContributed = members.reduce((s, m) => s + m.totalContributed, 0);
   const activeMembers = members.filter(m => m.status === 'active').length;
+
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
 
   return (
     <div className="space-y-6">

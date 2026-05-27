@@ -28,6 +28,7 @@ pnpm-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 
 # Testing
 coverage/
@@ -40,3 +41,6 @@ coverage/
 
 # Debug
 npm-debug.log*
+# Test artifacts
+test-results/
+supabase/.temp/

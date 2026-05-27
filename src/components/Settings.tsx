@@ -1,13 +1,44 @@
 import { useState } from 'react';
-import { chamaInfo } from '../data/store';
+import { useData } from '../data/context';
+import { supabase } from '../data/supabase';
+import { useAuth } from '../data/auth-context';
+import { DEFAULT_MONTHLY_CONTRIBUTION, DEFAULT_INTEREST_RATE } from '../data/constants';
 
 export default function Settings() {
+  const { user } = useAuth();
+  const { chama, refresh, loading } = useData();
   const [activeTab, setActiveTab] = useState('chama');
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!chama?.id || saving) return;
+    setSaving(true);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    try {
+      const monthlyContribution = parseInt(formData.get('monthlyContribution') as string) || 0;
+      const loanInterestRate = parseFloat(formData.get('loanInterestRate') as string) || 0;
+      const { error } = await supabase.from('chamas').update({
+        name: formData.get('name') as string,
+        location: formData.get('location') as string,
+        meeting_schedule: formData.get('meetingSchedule') as string,
+        monthly_contribution: monthlyContribution,
+        loan_interest_rate: loanInterestRate,
+      }).eq('id', chama.id);
+      if (error) throw error;
+      setSaved(true);
+      await refresh();
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Save error:', err);
+    }
+    setSaving(false);
   };
 
   const tabs = [
@@ -37,39 +68,31 @@ export default function Settings() {
 
       {/* Chama Info Tab */}
       {activeTab === 'chama' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <form onSubmit={handleSave} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
           <h2 className="font-bold text-gray-900 text-lg">Chama Information</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             {[
-              ['Chama Name', chamaInfo.name, 'text'],
-              ['Registration Number', chamaInfo.registrationNumber, 'text'],
-              ['Location', chamaInfo.location, 'text'],
-              ['Founded', chamaInfo.founded, 'date'],
-              ['Monthly Contribution (KSh)', chamaInfo.monthlyContribution, 'number'],
-              ['Loan Interest Rate (%)', chamaInfo.loanInterestRate, 'number'],
-              ['Meeting Schedule', chamaInfo.meetingSchedule, 'text'],
-            ].map(([label, val, type]) => (
-              <div key={label as string}>
-                <label className="text-sm font-semibold text-gray-700 block mb-1">{label}</label>
-                <input type={type as string} defaultValue={val as string | number}
+              ['Chama Name', 'name', chama?.name || '', 'text'],
+              ['Registration Number', 'registrationNumber', chama?.registrationNumber || '', 'text'],
+              ['Location', 'location', chama?.location || '', 'text'],
+              ['Monthly Contribution (KSh)', 'monthlyContribution', chama?.monthlyContribution || DEFAULT_MONTHLY_CONTRIBUTION, 'number'],
+              ['Loan Interest Rate (%)', 'loanInterestRate', chama?.loanInterestRate || DEFAULT_INTEREST_RATE, 'number'],
+              ['Meeting Schedule', 'meetingSchedule', chama?.meetingSchedule || '', 'text'],
+            ].map(([label, name, val, type]) => (
+              <div key={name as string}>
+                <label htmlFor={name as string} className="text-sm font-semibold text-gray-700 block mb-1">{label}</label>
+                <input id={name as string} type={type as string} name={name as string} defaultValue={val as string | number}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100" />
               </div>
             ))}
           </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1">Chama Constitution / Objectives</label>
-            <textarea rows={3} defaultValue="Umoja Wetu Investment Group is committed to pooling resources and investments to improve the financial well-being of all members through disciplined savings, responsible lending and collective investments."
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-400 resize-none" />
-          </div>
           <div className="flex gap-3">
-            <button onClick={handleSave} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
-              {saved ? '✓ Saved!' : 'Save Changes'}
-            </button>
-            <button className="px-6 py-2.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all">
-              Cancel
+            <button type="submit" disabled={saving}
+              className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'} disabled:opacity-50`}>
+              {saving ? 'Saving...' : saved ? '✓ Saved!' : 'Save Changes'}
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {/* Notifications Tab */}
@@ -108,49 +131,45 @@ export default function Settings() {
               <option>1 day before</option>
             </select>
           </div>
-          <button onClick={handleSave} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+          <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
             {saved ? '✓ Saved!' : 'Save Notification Settings'}
           </button>
         </div>
       )}
 
-      {/* M-Pesa Tab */}
+        {/* M-Pesa Tab */}
       {activeTab === 'payments' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
           <h2 className="font-bold text-gray-900 text-lg">M-Pesa Integration</h2>
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
             <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white text-lg font-black">M</div>
             <div>
-              <div className="font-bold text-green-900">M-Pesa Connected</div>
-              <div className="text-sm text-green-700">Paybill 247247 · Account: UMOJAWETU</div>
+              <div className="font-bold text-green-900">Manual M-Pesa Collection</div>
+              <div className="text-sm text-green-700">Send to 0797 132 940</div>
             </div>
-            <span className="ml-auto text-xs font-bold bg-green-600 text-white px-2.5 py-1 rounded-full">LIVE</span>
+            <span className="ml-auto text-xs font-bold bg-green-600 text-white px-2.5 py-1 rounded-full">ACTIVE</span>
+          </div>
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+            <strong>How it works:</strong> Members send contributions to 0797 132 940 via M-Pesa. The admin then records the payment in the app using the M-Pesa confirmation code from the member's SMS. No M-Pesa API keys required.
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             {[
-              ['Business Paybill', '247247'],
-              ['Account Number Format', 'UMOJAWETU'],
-              ['Shortcode (Till)', '5678901'],
-              ['Consumer Key', '••••••••••••WXYZ'],
-              ['Consumer Secret', '••••••••••••ABCD'],
-              ['Passkey', '••••••••••••••••'],
+              ['M-Pesa Number', '0797 132 940'],
+              ['Account Name', 'ChamaOS'],
+              ['Consumer Key', 'Not configured'],
+              ['Consumer Secret', 'Not configured'],
+              ['Passkey', 'Not configured'],
             ].map(([label, val]) => (
               <div key={label as string}>
                 <label className="text-sm font-semibold text-gray-700 block mb-1">{label}</label>
-                <input type="text" defaultValue={val as string}
+                <input type="text" defaultValue={val as string} readOnly={val === '0797 132 940'}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-400 font-mono" />
               </div>
             ))}
           </div>
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
-            <strong>How it works:</strong> When a member pays to Paybill 247247 with account number UMOJAWETU + their phone number, ChamaOS automatically records the contribution and sends them a confirmation SMS.
-          </div>
           <div className="flex gap-3">
-            <button onClick={handleSave} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all">
+            <button onClick={() => { setToast('Manual collection confirmed. No credentials needed.'); setTimeout(() => setToast(null), 3000); }} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all">
               Save M-Pesa Settings
-            </button>
-            <button className="px-6 py-2.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all">
-              🧪 Test Connection
             </button>
           </div>
         </div>
@@ -199,17 +218,38 @@ export default function Settings() {
             <div className="font-bold text-red-800 text-sm mb-1">⚠️ Danger Zone</div>
             <div className="text-xs text-red-700 mb-3">These actions are irreversible. Proceed with caution.</div>
             <div className="flex gap-2">
-              <button className="text-sm font-bold text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                Export All Data
-              </button>
-              <button className="text-sm font-bold text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                Delete Chama Account
-              </button>
+              {confirming === 'export' ? (
+                <div className="flex items-center gap-2 bg-red-100 rounded-lg px-3 py-1.5">
+                  <span className="text-xs text-red-800">Are you sure? This will export all chama data.</span>
+                  <button onClick={() => { console.log('Export confirmed'); setConfirming(null); }} className="text-xs font-bold text-white bg-red-600 px-2 py-1 rounded hover:bg-red-700">Confirm</button>
+                  <button onClick={() => setConfirming(null)} className="text-xs font-bold text-red-600 border border-red-200 px-2 py-1 rounded hover:bg-red-50">Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirming('export')} className="text-sm font-bold text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                  Export All Data
+                </button>
+              )}
+              {confirming === 'delete' ? (
+                <div className="flex items-center gap-2 bg-red-100 rounded-lg px-3 py-1.5">
+                  <span className="text-xs text-red-800">Are you sure? This will permanently delete all chama data.</span>
+                  <button onClick={() => { console.log('Delete confirmed'); setConfirming(null); }} className="text-xs font-bold text-white bg-red-600 px-2 py-1 rounded hover:bg-red-700">Confirm</button>
+                  <button onClick={() => setConfirming(null)} className="text-xs font-bold text-red-600 border border-red-200 px-2 py-1 rounded hover:bg-red-50">Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirming('delete')} className="text-sm font-bold text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                  Delete Chama Account
+                </button>
+              )}
             </div>
           </div>
-          <button onClick={handleSave} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+          <button onClick={() => { setToast("Password changes are handled through Supabase auth - use the 'Forgot Password' flow on the login page."); setTimeout(() => setToast(null), 4000); }} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
             {saved ? '✓ Saved!' : 'Save Security Settings'}
           </button>
+        </div>
+      )}
+      {toast && (
+        <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg text-sm max-w-sm z-50 animate-in fade-in">
+          {toast}
         </div>
       )}
     </div>

@@ -1,19 +1,24 @@
 import { useState } from 'react';
-import { meetings, members, Meeting, addMeeting } from '../data/store';
+import { Meeting } from '../data/types';
+import { useData } from '../data/context';
+import { DEFAULT_MEETING_TIME } from '../data/constants';
 
 export default function Meetings() {
+  const { meetings, members, loading, addMeeting } = useData();
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [showNew, setShowNew] = useState(false);
   
   const [newMeeting, setNewMeeting] = useState({
     title: '',
     date: '',
-    time: '10:00',
+    time: DEFAULT_MEETING_TIME,
     venue: '',
     agenda: '',
   });
   const [meetingError, setMeetingError] = useState('');
   const [meetingSuccess, setMeetingSuccess] = useState(false);
+
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
 
   const upcoming = meetings.filter(m => m.status === 'upcoming');
   const completed = meetings.filter(m => m.status === 'completed');
@@ -194,7 +199,7 @@ export default function Meetings() {
             </div>
             {meetingSuccess && (
               <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 mb-4 text-sm font-semibold">
-                ✅ Meeting scheduled! WhatsApp + SMS notifications sent to all members.
+                ✅ Meeting scheduled successfully
               </div>
             )}
             {meetingError && (
@@ -255,7 +260,7 @@ export default function Meetings() {
               </div>
               <div className="bg-green-50 border border-green-100 rounded-xl p-3 flex items-center gap-2 text-sm text-green-800">
                 <input type="checkbox" id="notify" defaultChecked className="accent-green-600" />
-                <label htmlFor="notify">Send WhatsApp + SMS to all {members.filter(m => m.status === 'active').length} active members</label>
+                <label htmlFor="notify">Notify members about this meeting</label>
               </div>
               <button 
                 onClick={() => {
@@ -283,9 +288,10 @@ export default function Meetings() {
                     setTimeout(() => {
                       setShowNew(false);
                       setMeetingSuccess(false);
-                      setNewMeeting({ title: '', date: '', time: '10:00', venue: '', agenda: '' });
+                      setNewMeeting({ title: '', date: '', time: DEFAULT_MEETING_TIME, venue: '', agenda: '' });
                     }, 2000);
                   } catch (err) {
+                    console.error('Failed to schedule meeting:', err);
                     setMeetingError('Failed to schedule meeting');
                   }
                 }}

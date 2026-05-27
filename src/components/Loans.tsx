@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { loans, members, Loan, addLoan } from '../data/store';
+import { Loan } from '../data/types';
+import { useData } from '../data/context';
+import { DEFAULT_INTEREST_RATE } from '../data/constants';
 
 export default function Loans() {
+  const { loans, members, loading, addLoan } = useData();
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [showNewLoan, setShowNewLoan] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -9,7 +12,7 @@ export default function Loans() {
   const [newLoan, setNewLoan] = useState({
     memberId: '',
     amount: 50000,
-    interest: 10,
+    interest: DEFAULT_INTEREST_RATE,
     purpose: '',
     period: '6',
   });
@@ -20,6 +23,8 @@ export default function Loans() {
   const totalOut = loans.filter(l => l.status !== 'paid').reduce((s, l) => s + l.balance, 0);
   const totalInterest = loans.filter(l => l.status !== 'paid').reduce((s, l) => s + (l.amount * l.interest / 100), 0);
   const overdueCount = loans.filter(l => l.status === 'overdue').length;
+
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
 
   const statusColors: Record<string, string> = {
     active: 'bg-blue-100 text-blue-700',
@@ -315,12 +320,13 @@ export default function Loans() {
                       setNewLoan({
                         memberId: '',
                         amount: 50000,
-                        interest: 10,
+                        interest: DEFAULT_INTEREST_RATE,
                         purpose: '',
                         period: '6',
                       });
                     }, 2000);
                   } catch (err) {
+                    console.error('Failed to submit loan application:', err);
                     setLoanError('Failed to submit loan application');
                   }
                 }}

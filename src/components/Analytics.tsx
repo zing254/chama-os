@@ -2,42 +2,77 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { monthlyTrend, fundBreakdown, members, loans } from '../data/store';
+import { useData } from '../data/context';
 
-const memberGrowth = [
-  { month: 'Jan 23', members: 8 },
-  { month: 'Apr 23', members: 10 },
-  { month: 'Jul 23', members: 14 },
-  { month: 'Oct 23', members: 18 },
-  { month: 'Jan 24', members: 20 },
-  { month: 'Apr 24', members: 22 },
-  { month: 'Jul 24', members: 24 },
-  { month: 'Nov 24', members: 24 },
-];
-
-const loanPerformance = [
-  { month: 'Jun', issued: 120000, repaid: 35000 },
-  { month: 'Jul', issued: 80000, repaid: 55000 },
-  { month: 'Aug', issued: 50000, repaid: 70000 },
-  { month: 'Sep', issued: 0, repaid: 68000 },
-  { month: 'Oct', issued: 0, repaid: 25000 },
-  { month: 'Nov', issued: 170000, repaid: 0 },
-];
-
-const contributionByMember = members.slice(0, 8).map(m => ({
-  name: m.name.split(' ').slice(0, 2).join(' '),
-  amount: m.totalContributed,
-  shares: m.shares,
-}));
+function formatKsh(n: number) {
+  return `KSh ${n.toLocaleString()}`;
+}
 
 export default function Analytics() {
-  const totalFund = 1847500;
-  const returnRate = ((75000 / totalFund) * 100).toFixed(1);
-  const avgLoan = Math.round(loans.filter(l => l.status !== 'paid').reduce((s, l) => s + l.amount, 0) / loans.filter(l => l.status !== 'paid').length);
+  const { members, contributions, loans, loading } = useData();
+
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
+
+  const totalPaid = contributions.filter(c => c.status === 'paid').reduce((s, c) => s + c.amount, 0);
+  const activeLoans = loans.filter(l => l.status !== 'paid');
+  const avgLoan = activeLoans.length > 0
+    ? Math.round(activeLoans.reduce((s, l) => s + l.amount, 0) / activeLoans.length)
+    : 0;
+  const totalOutstanding = activeLoans.reduce((s, l) => s + l.balance, 0);
+  const returnRate = totalPaid > 0 ? ((totalOutstanding * 0.1 / totalPaid) * 100).toFixed(1) : '0';
+
+  const monthlyTrend = contributions
+    .filter(c => c.status === 'paid')
+    .reduce<Record<string, { contributions: number; interest: number }>>((acc, c) => {
+      const m = c.month.split(' ')[0].slice(0, 3);
+      if (!acc[m]) acc[m] = { contributions: 0, interest: 0 };
+      acc[m].contributions += c.amount;
+      acc[m].interest += Math.round(c.amount * 0.05);
+      return acc;
+    }, {});
+  const chartMonths = Object.entries(monthlyTrend).slice(-6).map(([month, d]) => ({
+    month, ...d,
+  }));
+
+  const fundBreakdown = [
+    { name: 'Available Fund', value: Math.max(totalPaid - totalOutstanding, 0), color: '#16a34a' },
+    { name: 'Loans Outstanding', value: totalOutstanding, color: '#f59e0b' },
+    { name: 'Reserves', value: Math.round(totalPaid * 0.05), color: '#64748b' },
+  ];
+  const totalAllocated = fundBreakdown.reduce((s, f) => s + f.value, 0) || 1;
+
+  const contributionByMember = [...members]
+    .sort((a, b) => b.totalContributed - a.totalContributed)
+    .slice(0, 8)
+    .map(m => ({
+      name: m.name.split(' ').slice(0, 2).join(' '),
+      amount: m.totalContributed,
+      shares: m.shares,
+    }));
+
+  const monthlyLoanData = loans
+    .filter(l => l.disbursedDate)
+    .reduce<Record<string, { issued: number; repaid: number }>>((acc, l) => {
+      const m = l.disbursedDate.slice(0, 7);
+      if (!acc[m]) acc[m] = { issued: 0, repaid: 0 };
+      acc[m].issued += l.amount;
+      acc[m].repaid += l.repayments.reduce((s, r) => s + r.amount, 0);
+      return acc;
+    }, {});
+  const loanChartData = Object.entries(monthlyLoanData).slice(-6).map(([month, d]) => ({
+    month: month.slice(5),
+    ...d,
+  }));
+
+  const kpiCards = [
+    { label: 'Fund Value', value: formatKsh(totalPaid), change: 'Active', up: true, icon: '💰' },
+    { label: 'Return Rate', value: `${returnRate}%`, change: 'Estimate', up: true, icon: '📈' },
+    { label: 'Loan Recovery', value: `${loans.length > 0 ? Math.round((loans.filter(l => l.status === 'paid').length / loans.length) * 100) : 0}%`, change: `${activeLoans.length} active`, up: true, icon: '🔄' },
+    { label: 'Avg Loan Size', value: `KSh ${(avgLoan / 1000).toFixed(0)}K`, change: `${loans.length} loans`, up: true, icon: '🏦' },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900">Analytics & Reports</h1>
@@ -53,14 +88,8 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Fund Value', value: 'KSh 1.85M', change: '+3.4%', up: true, icon: '💰' },
-          { label: 'Return Rate', value: `${returnRate}%`, change: '+0.5%', up: true, icon: '📈' },
-          { label: 'Loan Recovery', value: '85%', change: '-5%', up: false, icon: '🔄' },
-          { label: 'Avg Loan Size', value: `KSh ${(avgLoan/1000).toFixed(0)}K`, change: '+KSh 20K', up: true, icon: '🏦' },
-        ].map(kpi => (
+        {kpiCards.map(kpi => (
           <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="text-xl">{kpi.icon}</div>
@@ -74,17 +103,15 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* Charts row 1 */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Fund growth */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h3 className="font-bold text-gray-900 mb-1">Contributions vs Interest Earned</h3>
-          <p className="text-xs text-gray-500 mb-4">Monthly breakdown — Jun to Nov 2024</p>
+          <p className="text-xs text-gray-500 mb-4">Monthly breakdown</p>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={monthlyTrend} barSize={16}>
+            <BarChart data={chartMonths.length > 0 ? chartMonths : [{ month: 'N/A', contributions: 0, interest: 0 }]} barSize={16}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K`} />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}K`} />
               <Tooltip formatter={(v: unknown) => `KSh ${Number(v).toLocaleString()}`} contentStyle={{ borderRadius: '12px', fontSize: 12 }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="contributions" name="Contributions" fill="#16a34a" radius={[4, 4, 0, 0]} />
@@ -93,21 +120,20 @@ export default function Analytics() {
           </ResponsiveContainer>
         </div>
 
-        {/* Fund allocation */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h3 className="font-bold text-gray-900 mb-1">Fund Allocation</h3>
           <p className="text-xs text-gray-500 mb-4">Where your money is working</p>
           <div className="flex items-center gap-4">
             <PieChart width={160} height={160}>
-              <Pie data={fundBreakdown} cx={75} cy={75} outerRadius={70} dataKey="value" strokeWidth={2}>
-                {fundBreakdown.map((entry, i) => (
+              <Pie data={fundBreakdown.filter(f => f.value > 0)} cx={75} cy={75} outerRadius={70} dataKey="value" strokeWidth={2}>
+                {fundBreakdown.filter(f => f.value > 0).map((entry, i) => (
                   <Cell key={i} fill={entry.color} />
                 ))}
               </Pie>
             </PieChart>
             <div className="flex-1 space-y-3">
-              {fundBreakdown.map(item => {
-                const pct = ((item.value / 1847500) * 100).toFixed(1);
+              {fundBreakdown.filter(f => f.value > 0).map(item => {
+                const pct = ((item.value / totalAllocated) * 100).toFixed(1);
                 return (
                   <div key={item.name}>
                     <div className="flex items-center justify-between text-sm mb-1">
@@ -128,32 +154,29 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Charts row 2 */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Member growth */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h3 className="font-bold text-gray-900 mb-1">Member Growth</h3>
-          <p className="text-xs text-gray-500 mb-4">Jan 2023 – Nov 2024</p>
+          <p className="text-xs text-gray-500 mb-4">{members.length} total members</p>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={memberGrowth}>
+            <LineChart data={[{ month: 'Now', members: members.length }]}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={[0, 30]} />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={[0, Math.max(members.length + 5, 10)]} />
               <Tooltip contentStyle={{ borderRadius: '12px', fontSize: 12 }} />
-              <Line type="monotone" dataKey="members" stroke="#2563eb" strokeWidth={3} dot={{ fill: '#2563eb', r: 4 }} name="Members" />
+              <Line type="monotone" dataKey="members" stroke="#2563eb" strokeWidth={3} dot={{ fill: '#2563eb', r: 6 }} name="Members" />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Loan performance */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h3 className="font-bold text-gray-900 mb-1">Loan Disbursements vs Repayments</h3>
-          <p className="text-xs text-gray-500 mb-4">Jun – Nov 2024</p>
+          <p className="text-xs text-gray-500 mb-4">{loans.length} total loans</p>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={loanPerformance} barSize={16}>
+            <BarChart data={loanChartData.length > 0 ? loanChartData : [{ month: 'N/A', issued: 0, repaid: 0 }]} barSize={16}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K`} />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}K`} />
               <Tooltip formatter={(v: unknown) => `KSh ${Number(v).toLocaleString()}`} contentStyle={{ borderRadius: '12px', fontSize: 12 }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="issued" name="Issued" fill="#f59e0b" radius={[4, 4, 0, 0]} />
@@ -163,44 +186,46 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Top contributors leaderboard */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-gray-900">Member Contribution Leaderboard 🏆</h3>
           <span className="text-xs text-gray-500">All-time totals</span>
         </div>
-        <div className="space-y-3">
-          {contributionByMember.map((m, i) => {
-            const max = contributionByMember[0].amount;
-            const pct = (m.amount / max) * 100;
-            const medals = ['🥇', '🥈', '🥉'];
-            return (
-              <div key={m.name} className="flex items-center gap-3">
-                <span className="text-lg w-6 text-center">{i < 3 ? medals[i] : `${i + 1}`}</span>
-                <div className="w-28 text-sm font-semibold text-gray-800 truncate shrink-0">{m.name}</div>
-                <div className="flex-1 bg-gray-100 rounded-full h-3">
-                  <div
-                    className="h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all"
-                    style={{ width: `${pct}%` }}
-                  ></div>
+        {contributionByMember.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-8">No contribution data yet</p>
+        ) : (
+          <div className="space-y-3">
+            {contributionByMember.map((m, i) => {
+              const max = contributionByMember[0].amount;
+              const pct = max > 0 ? (m.amount / max) * 100 : 0;
+              const medals = ['🥇', '🥈', '🥉'];
+              return (
+                <div key={m.name} className="flex items-center gap-3">
+                  <span className="text-lg w-6 text-center">{i < 3 ? medals[i] : `${i + 1}`}</span>
+                  <div className="w-28 text-sm font-semibold text-gray-800 truncate shrink-0">{m.name}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-3">
+                    <div
+                      className="h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all"
+                      style={{ width: `${pct}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-sm font-black text-gray-900 w-24 text-right shrink-0">{formatKsh(m.amount)}</div>
+                  <div className="text-xs text-gray-400 w-16 text-right shrink-0">{m.shares} shares</div>
                 </div>
-                <div className="text-sm font-black text-gray-900 w-24 text-right shrink-0">KSh {m.amount.toLocaleString()}</div>
-                <div className="text-xs text-gray-400 w-16 text-right shrink-0">{m.shares} shares</div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Insights */}
       <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-5">
-        <h3 className="font-bold text-gray-900 mb-3">🤖 AI Insights for Umoja Wetu</h3>
+        <h3 className="font-bold text-gray-900 mb-3">🤖 AI Insights</h3>
         <div className="grid sm:grid-cols-2 gap-3">
           {[
-            { icon: '📈', insight: 'Your fund grew 3.4% this month — outperforming the average Kenyan bank savings rate of 2.1%.' },
-            { icon: '⚠️', insight: 'Peter Maina\'s loan is overdue. Consider a repayment plan meeting before the December gathering.' },
-            { icon: '💡', insight: 'Based on your fund size, you qualify for a 91-day T-Bill at 15.2% p.a. through CBK.' },
-            { icon: '👥', insight: 'Member growth has stalled for 4 months. Consider a referral bonus to attract new members.' },
+            { icon: '📈', insight: `Your fund totals ${formatKsh(totalPaid)} across ${members.length} members.` },
+            { icon: '⚠️', insight: `${activeLoans.filter(l => l.status === 'overdue').length} loan(s) overdue. Consider repayment follow-up.` },
+            { icon: '💡', insight: `Average contribution per member: ${formatKsh(members.length > 0 ? Math.round(totalPaid / members.length) : 0)}.` },
+            { icon: '👥', insight: `${members.filter(m => m.status === 'active').length} active members. ${members.filter(m => m.status === 'inactive').length} inactive.` },
           ].map((item, i) => (
             <div key={i} className="bg-white rounded-xl p-3 flex gap-3">
               <span className="text-xl">{item.icon}</span>
