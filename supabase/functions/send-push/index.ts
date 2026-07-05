@@ -1,10 +1,20 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import webpush from 'npm:web-push@3.6.7';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
+const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
+
+webpush.setVapidDetails(
+  'mailto:admin@chama-os.app',
+  vapidPublicKey,
+  vapidPrivateKey,
+);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -26,7 +36,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { chamaId, title, body }: { chamaId?: string; title: string; body: string } = await req.json();
+    const { chamaId, title, body } = await req.json();
 
     if (!title || !body) {
       return new Response(JSON.stringify({ error: 'title and body are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -48,19 +58,17 @@ serve(async (req) => {
     let sent = 0;
     for (const sub of subscriptions) {
       try {
-        const res = await fetch(sub.endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subscription: { endpoint: sub.endpoint, keys: sub.keys },
-            title,
-            body,
-            icon: '/favicon.ico',
-          }),
-        });
-        if (res.ok) sent++;
-      } catch {
-        await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+        const pushSubscription = {
+          endpoint: sub.endpoint,
+          keys: sub.keys,
+        };
+        await webpush.sendNotification(pushSubscription, JSON.stringify({ title, body, icon: '/favicon.ico' }));
+        sent++;
+      } catch (err) {
+        const statusCode = err?.statusCode;
+        if (statusCode === 410 || statusCode === 404) {
+          await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+        }
       }
     }
 

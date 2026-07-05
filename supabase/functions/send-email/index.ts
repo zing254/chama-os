@@ -104,7 +104,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'ChamaOS <onboarding@resend.dev>',
+        from: 'ChamaOS <noreply@chamaos.kesug.com>',
         to: [to],
         subject,
         html: escapedBody,
