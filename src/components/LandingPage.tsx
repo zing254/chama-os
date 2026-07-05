@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { plans } from '../data/types';
 import { useScrollReveal } from '../data/useScrollReveal';
+import { useKenyanNotes } from '../data/useKenyanNotes';
 
 const features = [
   {
@@ -74,6 +75,7 @@ const stats = [
 export default function LandingPage() {
   const navigate = useNavigate();
   const onEnterApp = () => navigate('/login');
+  const canvasRef = useKenyanNotes(28);
   const [billingAnnual, setBillingAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
@@ -134,17 +136,13 @@ export default function LandingPage() {
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-green-950 via-green-900 to-emerald-800 text-white">
-        {/* Floating coin/currency particles */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" aria-hidden="true">
-          <span className="absolute animate-float-coin text-3xl" style={{ left: '8%', top: '15%' }}>🪙</span>
-          <span className="absolute animate-float-coin-2 text-2xl" style={{ left: '22%', top: '60%' }}>💰</span>
-          <span className="absolute animate-float-coin-3 text-3xl" style={{ left: '85%', top: '20%' }}>🪙</span>
-          <span className="absolute animate-float-coin text-2xl" style={{ left: '70%', top: '70%' }}>📈</span>
-          <span className="absolute animate-float-coin-2 text-xl" style={{ left: '45%', top: '10%' }}>🇰🇪</span>
-          <span className="absolute animate-float-coin-3 text-2xl" style={{ left: '5%', top: '80%' }}>💚</span>
-          <span className="absolute animate-float-coin text-lg" style={{ left: '92%', top: '45%' }}>🏦</span>
-          <span className="absolute animate-float-coin-2 text-xl" style={{ left: '55%', top: '85%' }}>🇰🇪</span>
-        </div>
+        {/* Floating Kenyan banknotes */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full pointer-events-none select-none"
+          aria-hidden="true"
+          style={{ zIndex: 1 }}
+        />
 
         {/* Gradient decoration */}
         <div className="absolute inset-0 opacity-10">
