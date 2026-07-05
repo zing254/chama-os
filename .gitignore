@@ -44,3 +44,4 @@ npm-debug.log*
 # Test artifacts
 test-results/
 supabase/.temp/
+.superpowers/
