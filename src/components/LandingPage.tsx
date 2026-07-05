@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { plans } from '../data/types';
+import { useScrollReveal } from '../data/useScrollReveal';
 
 const features = [
   {
@@ -75,6 +76,26 @@ export default function LandingPage() {
   const onEnterApp = () => navigate('/login');
   const [billingAnnual, setBillingAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTestimonial(prev => (prev + 1) % testimonials.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  function ScrollRevealSection({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+    const { ref, isVisible } = useScrollReveal(0.1);
+    return (
+      <div
+        ref={ref}
+        className={`transition-all duration-700 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} ${className}`}
+      >
+        {children}
+      </div>
+    );
+  }
 
   const faqs = [
     { q: 'Does ChamaOS work with M-Pesa?', a: 'Yes! ChamaOS integrates directly with M-Pesa via Safaricom\'s Daraja API. Members can pay contributions via STK Push (they get a prompt on their phone), Paybill, or till number. Payments are reflected instantly in the dashboard.' },
@@ -113,11 +134,23 @@ export default function LandingPage() {
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-green-950 via-green-900 to-emerald-800 text-white">
-        {/* Decorative elements */}
+        {/* Floating coin/currency particles */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" aria-hidden="true">
+          <span className="absolute animate-float-coin text-3xl" style={{ left: '8%', top: '15%' }}>🪙</span>
+          <span className="absolute animate-float-coin-2 text-2xl" style={{ left: '22%', top: '60%' }}>💰</span>
+          <span className="absolute animate-float-coin-3 text-3xl" style={{ left: '85%', top: '20%' }}>🪙</span>
+          <span className="absolute animate-float-coin text-2xl" style={{ left: '70%', top: '70%' }}>📈</span>
+          <span className="absolute animate-float-coin-2 text-xl" style={{ left: '45%', top: '10%' }}>🇰🇪</span>
+          <span className="absolute animate-float-coin-3 text-2xl" style={{ left: '5%', top: '80%' }}>💚</span>
+          <span className="absolute animate-float-coin text-lg" style={{ left: '92%', top: '45%' }}>🏦</span>
+          <span className="absolute animate-float-coin-2 text-xl" style={{ left: '55%', top: '85%' }}>🇰🇪</span>
+        </div>
+
+        {/* Gradient decoration */}
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-green-400 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-emerald-400 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-yellow-400 rounded-full blur-3xl"></div>
+          <div className="absolute top-20 left-10 w-72 h-72 bg-green-400 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-10 right-10 w-96 h-96 bg-emerald-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-yellow-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
         </div>
 
         {/* Kenya flag stripe */}
@@ -208,8 +241,8 @@ export default function LandingPage() {
       <section className="bg-gray-900 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            {stats.map(s => (
-              <div key={s.label}>
+            {stats.map((s, i) => (
+              <div key={s.label} className="animate-fade-in-scale" style={{ animationDelay: `${i * 150}ms` }}>
                 <div className="text-3xl font-black text-green-400">{s.value}</div>
                 <div className="text-gray-400 text-sm mt-1">{s.label}</div>
               </div>
@@ -219,6 +252,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ──────────────────────────────────────────────────────── */}
+      <ScrollRevealSection>
       <section id="features" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -228,8 +262,8 @@ export default function LandingPage() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map(f => (
-              <div key={f.title} className="group p-6 rounded-2xl border border-gray-100 hover:border-green-200 hover:shadow-xl hover:shadow-green-50 transition-all hover:-translate-y-1 bg-white">
-                <div className="text-4xl mb-4">{f.icon}</div>
+              <div key={f.title} className="group p-6 rounded-2xl border border-gray-100 hover:border-green-200 hover:shadow-xl hover:shadow-green-50 hover:ring-1 hover:ring-green-200 transition-all duration-300 hover:-translate-y-1 bg-white">
+                <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">{f.icon}</div>
                 <h3 className="font-bold text-gray-900 text-lg mb-2">{f.title}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed">{f.desc}</p>
               </div>
@@ -237,8 +271,10 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      </ScrollRevealSection>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
+      <ScrollRevealSection>
       <section className="py-24 bg-gradient-to-br from-green-50 to-emerald-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -268,36 +304,59 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      </ScrollRevealSection>
 
       {/* ── TESTIMONIALS ──────────────────────────────────────────────────── */}
+      <ScrollRevealSection>
       <section id="testimonials" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <span className="text-green-600 font-bold text-sm uppercase tracking-widest">Real Stories</span>
             <h2 className="text-4xl font-black text-gray-900 mt-2">Trusted by chama leaders<br />across Kenya</h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map(t => (
-              <div key={t.name} className="bg-gradient-to-br from-gray-50 to-green-50 rounded-2xl p-6 border border-green-100">
-                <div className="flex mb-4">
-                  {[...Array(t.stars)].map((_, i) => <span key={i} className="text-yellow-400">★</span>)}
-                </div>
-                <p className="text-gray-700 italic mb-6 leading-relaxed">"{t.quote}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-sm">{t.avatar}</div>
-                  <div>
-                    <div className="font-bold text-gray-900 text-sm">{t.name}</div>
-                    <div className="text-gray-500 text-xs">{t.role}</div>
-                    <div className="text-green-600 text-xs">{t.location}</div>
+          <div className="relative min-h-[320px]">
+            {testimonials.map((t, i) => (
+              <div
+                key={t.name}
+                className={`absolute inset-0 transition-all duration-500 ease-in-out ${
+                  i === currentTestimonial ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'
+                }`}
+              >
+                <div className="bg-gradient-to-br from-gray-50 to-green-50 rounded-2xl p-6 border border-green-100 max-w-xl mx-auto">
+                  <div className="flex mb-4">
+                    {[...Array(t.stars)].map((_, si) => <span key={si} className="text-yellow-400 text-xl">★</span>)}
+                  </div>
+                  <p className="text-gray-700 italic mb-6 leading-relaxed text-lg">"{t.quote}"</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-700 flex items-center justify-center text-white font-bold">{t.avatar}</div>
+                    <div>
+                      <div className="font-bold text-gray-900">{t.name}</div>
+                      <div className="text-gray-500 text-sm">{t.role}</div>
+                      <div className="text-green-600 text-sm font-medium">{t.location}</div>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
+            {/* Dots */}
+            <div className="flex justify-center gap-2 mt-4 absolute -bottom-10 left-0 right-0">
+              {testimonials.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentTestimonial(i)}
+                  className={`w-2.5 h-2.5 rounded-full transition-all ${
+                    i === currentTestimonial ? 'bg-green-600 w-6' : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
+      </ScrollRevealSection>
 
       {/* ── PRICING ───────────────────────────────────────────────────────── */}
+      <ScrollRevealSection>
       <section id="pricing" className="py-24 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -350,8 +409,10 @@ export default function LandingPage() {
           <p className="text-center text-gray-500 text-sm mt-8">All plans include 30-day free trial. Pay via M-Pesa to 0797 132 940.</p>
         </div>
       </section>
+      </ScrollRevealSection>
 
       {/* ── FAQ ───────────────────────────────────────────────────────────── */}
+      <ScrollRevealSection>
       <section id="faq" className="py-24 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -369,15 +430,17 @@ export default function LandingPage() {
                   <span className={`text-green-600 text-xl transition-transform ${openFaq === i ? 'rotate-45' : ''}`}>+</span>
                 </button>
                 {openFaq === i && (
-                  <div className="px-6 pb-4 text-gray-600 leading-relaxed border-t border-gray-100">{faq.a}</div>
+                  <div className="px-6 pb-4 text-gray-600 leading-relaxed border-t border-gray-100 animate-fade-in-up">{faq.a}</div>
                 )}
               </div>
             ))}
           </div>
         </div>
       </section>
+      </ScrollRevealSection>
 
       {/* ── CTA BANNER ───────────────────────────────────────────────────── */}
+      <ScrollRevealSection>
       <section className="py-20 bg-gradient-to-br from-green-700 to-emerald-900 text-white text-center">
         <div className="max-w-3xl mx-auto px-4">
           <div className="text-5xl mb-4">🇰🇪</div>
@@ -388,6 +451,7 @@ export default function LandingPage() {
           </button>
         </div>
       </section>
+      </ScrollRevealSection>
 
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
       <footer className="bg-gray-950 text-gray-400 py-12">
@@ -417,10 +481,15 @@ export default function LandingPage() {
           </div>
           <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm">© {new Date().getFullYear()} ChamaOS Ltd. All rights reserved. Reg. No. KE/2024/78432</p>
-            <div className="flex gap-4 text-sm">
-              <a href="#" className="hover:text-green-400 transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-green-400 transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-green-400 transition-colors">Data Protection</a>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-4 text-sm">
+                <a href="#" className="hover:text-green-400 transition-colors">Privacy Policy</a>
+                <a href="#" className="hover:text-green-400 transition-colors">Terms of Service</a>
+                <a href="#" className="hover:text-green-400 transition-colors">Data Protection</a>
+              </div>
+              <span className="text-xs text-gray-600 border-l border-gray-800 pl-4">
+                Powered by <span className="font-semibold text-gray-400">Zingri_Master🥷</span>
+              </span>
             </div>
           </div>
         </div>
