@@ -109,10 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (signUpError) return { error: signUpError.message };
     if (!data.user) return { error: 'Sign up failed' };
 
-    // Call the seed function to create chama + profile + seed data
     const { error: seedError } = await supabase.rpc('seed_chama', { chama_name: chamaName });
     if (seedError) {
-      return { error: 'Account created but chama setup failed. Please contact support.' };
+      console.error('seed_chama error:', seedError);
+      return { error: `Chama setup failed: ${seedError.message}. Please try signing up again or contact support.` };
     }
 
     const profile = await fetchProfile(data.user.id);

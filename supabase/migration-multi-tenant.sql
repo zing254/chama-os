@@ -439,3 +439,72 @@ CREATE INDEX IF NOT EXISTS idx_loan_repayments_chama ON loan_repayments(chama_id
 CREATE INDEX IF NOT EXISTS idx_loan_repayments_loan ON loan_repayments(loan_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_chama ON transactions(chama_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_chama ON audit_logs(chama_id);
+
+-- 6. WHATSAPP TABLES
+
+-- whatsapp_sessions
+CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  wa_id TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id),
+  member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+  chama_id UUID REFERENCES chamas(id) ON DELETE CASCADE,
+  state TEXT NOT NULL DEFAULT 'idle' CHECK (state IN ('idle','awaiting_voice','awaiting_mpesa','disputing')),
+  context JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_wa_id ON whatsapp_sessions(wa_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_chama_id ON whatsapp_sessions(chama_id);
+ALTER TABLE whatsapp_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin full access whatsapp_sessions" ON whatsapp_sessions;
+CREATE POLICY "Admin full access whatsapp_sessions" ON whatsapp_sessions
+  FOR ALL USING (is_chama_admin(chama_id));
+DROP POLICY IF EXISTS "Member view whatsapp_sessions" ON whatsapp_sessions;
+CREATE POLICY "Member view whatsapp_sessions" ON whatsapp_sessions
+  FOR SELECT USING (user_has_chama_access(chama_id));
+
+-- whatsapp_messages
+CREATE TABLE IF NOT EXISTS whatsapp_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID REFERENCES whatsapp_sessions(id) ON DELETE CASCADE,
+  chama_id UUID REFERENCES chamas(id) ON DELETE CASCADE,
+  wa_id TEXT NOT NULL,
+  direction TEXT NOT NULL CHECK (direction IN ('received','sent')),
+  message_type TEXT NOT NULL DEFAULT 'text',
+  content TEXT,
+  media_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_wa_id ON whatsapp_messages(wa_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_session_id ON whatsapp_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_chama_id ON whatsapp_messages(chama_id);
+ALTER TABLE whatsapp_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin full access whatsapp_messages" ON whatsapp_messages;
+CREATE POLICY "Admin full access whatsapp_messages" ON whatsapp_messages
+  FOR ALL USING (is_chama_admin(chama_id));
+DROP POLICY IF EXISTS "Member view whatsapp_messages" ON whatsapp_messages;
+CREATE POLICY "Member view whatsapp_messages" ON whatsapp_messages
+  FOR SELECT USING (user_has_chama_access(chama_id));
+
+-- minutes_archive
+CREATE TABLE IF NOT EXISTS minutes_archive (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chama_id UUID REFERENCES chamas(id) ON DELETE CASCADE,
+  created_by TEXT REFERENCES members(id) ON DELETE SET NULL,
+  title TEXT,
+  summary TEXT,
+  decisions JSONB DEFAULT '[]'::jsonb,
+  action_items JSONB DEFAULT '[]'::jsonb,
+  transcript TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_minutes_archive_chama_id ON minutes_archive(chama_id);
+CREATE INDEX IF NOT EXISTS idx_minutes_archive_created_by ON minutes_archive(created_by);
+ALTER TABLE minutes_archive ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin full access minutes_archive" ON minutes_archive;
+CREATE POLICY "Admin full access minutes_archive" ON minutes_archive
+  FOR ALL USING (is_chama_admin(chama_id));
+DROP POLICY IF EXISTS "Member view minutes_archive" ON minutes_archive;
+CREATE POLICY "Member view minutes_archive" ON minutes_archive
+  FOR SELECT USING (user_has_chama_access(chama_id));

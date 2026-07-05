@@ -5,6 +5,7 @@ import { useAuth } from '../data/auth-context';
 import { useToast } from '../data/toast-context';
 import { DEFAULT_INTEREST_RATE, DEFAULT_MONTHLY_CONTRIBUTION } from '../data/constants';
 import { sendSMS, sendWhatsApp } from '../data/notifications-helper';
+import AuditorPanel from './features/AuditorPanel';
 
 function formatKsh(n: number) {
   return `KSh ${n.toLocaleString()}`;
@@ -247,6 +248,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Auditor Widget */}
+      <AuditorPanel chamaId={chama?.id || ''} />
 
       {/* Record Payment Modal */}
       {showRecord && (

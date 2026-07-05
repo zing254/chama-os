@@ -3,6 +3,7 @@ import { Loan } from '../data/types';
 import { useData } from '../data/context';
 import { useToast } from '../data/toast-context';
 import { DEFAULT_INTEREST_RATE } from '../data/constants';
+import LoanRiskBadge from './features/LoanRiskBadge';
 
 export default function Loans() {
   const { loans, members, loading, addLoan, updateLoan, deleteLoan, addRepayment } = useData();
@@ -117,6 +118,9 @@ export default function Loans() {
                   <div className="font-bold text-gray-900">{loan.memberName}</div>
                   <div className="text-xs text-gray-500 mt-0.5">📋 {loan.purpose}</div>
                   <div className="text-xs text-gray-400 mt-0.5">Disbursed {loan.disbursedDate} · Due {loan.dueDate}</div>
+                  <div className="mt-1.5">
+                    <LoanRiskBadge memberId={loan.memberId} memberName={loan.memberName} />
+                  </div>
                 </div>
               </div>
 

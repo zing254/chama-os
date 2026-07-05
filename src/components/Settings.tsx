@@ -50,6 +50,8 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [auditorEnabled, setAuditorEnabled] = useState(true);
+  const [riskThreshold, setRiskThreshold] = useState(50);
 
   useEffect(() => {
     if (!user?.id || activeTab !== 'notifications') return;
@@ -166,6 +168,7 @@ export default function Settings() {
     { id: 'notifications', label: '🔔 Notifications', },
     { id: 'payments', label: '💳 M-Pesa', },
     { id: 'security', label: '🔐 Security', },
+    { id: 'whatsapp', label: '💬 WhatsApp', },
   ];
 
   return (
@@ -368,6 +371,43 @@ export default function Settings() {
                   Delete Chama Account
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {activeTab === 'whatsapp' && (
+        <div className="space-y-6">
+          <h3 className="text-lg font-bold text-white">WhatsApp Integration</h3>
+          <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white font-medium">AI Auditor</p>
+                <p className="text-gray-400 text-sm">Weekly Sunday audit summary sent via WhatsApp</p>
+              </div>
+              <button
+                onClick={() => setAuditorEnabled(!auditorEnabled)}
+                className={`w-12 h-6 rounded-full transition-colors ${auditorEnabled ? 'bg-green-600' : 'bg-gray-600'}`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${auditorEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Risk Threshold ({riskThreshold}%)</label>
+              <input
+                type="range"
+                min="30"
+                max="90"
+                value={riskThreshold}
+                onChange={(e) => setRiskThreshold(Number(e.target.value))}
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">Loans above this risk % will show a warning badge</p>
+            </div>
+            <div className="bg-gray-700/50 rounded-xl p-4">
+              <p className="text-sm text-gray-300">
+                <span className="text-green-400">●</span> Africa's Talking sandbox connected
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Shortcode: 24300</p>
             </div>
           </div>
         </div>

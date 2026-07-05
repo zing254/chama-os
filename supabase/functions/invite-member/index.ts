@@ -85,6 +85,38 @@ serve(async (req) => {
 
     if (insertError) throw insertError;
 
+    const atUsername = Deno.env.get('AT_USERNAME');
+    const atApiKey = Deno.env.get('AT_API_KEY');
+    const onboardingMsg = `Karibu ChamaOS! 💰\nSubscribe to stay connected:\nJibu CHAMA to 24300\n\nWhat you can do:\n• Forward M-Pesa SMS to log contributions\n• Reply HELP for menu`;
+
+    if (atUsername && atApiKey) {
+      const { data: member } = await supabase
+        .from('members')
+        .select('phone')
+        .eq('id', memberId)
+        .maybeSingle();
+
+      if (member?.phone) {
+        const waNumber = member.phone.startsWith('+') ? member.phone.slice(1) : member.phone;
+        const formData = new URLSearchParams();
+        formData.append('username', atUsername);
+        formData.append('to', waNumber);
+        formData.append('message', onboardingMsg);
+        try {
+          await fetch('https://api.sandbox.africastalking.com/version1/messaging', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'ApiKey': atApiKey,
+            },
+            body: formData.toString(),
+          });
+        } catch {
+          // Non-blocking — onboarding message is best-effort
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

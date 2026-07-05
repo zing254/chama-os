@@ -43,7 +43,7 @@ npx vercel alias set <new-url> chama-os.vercel.app  # Re-alias (needed every dep
 ```bash
 # After changing code OR setting new secrets:
 supabase functions deploy <name> --no-verify-jwt
-# Names: invite-member, stripe-checkout, mpesa-stkpush, send-email, send-push, stripe-webhook
+# Names: invite-member, stripe-checkout, mpesa-stkpush, send-email, send-push, stripe-webhook, whatsapp-webhook, ai-auditor
 ```
 
 ### Database Migrations
@@ -73,7 +73,12 @@ supabase secrets set \
   STRIPE_WEBHOOK_SECRET=whsec_xxx \
   PUBLIC_SITE_URL=https://chama-os.vercel.app \
   VAPID_PUBLIC_KEY=xxx \
-  VAPID_PRIVATE_KEY=xxx
+  VAPID_PRIVATE_KEY=xxx \
+  VITE_GEMINI_API_KEY=xxx \
+  AT_USERNAME=sandbox \
+  AT_API_KEY=xxx \
+  AT_SHORTCODE=7231 \
+  CRON_SECRET=xxx
 ```
 
 **Critical:** Setting a secret does NOT update the running function. You MUST also:
@@ -83,7 +88,7 @@ supabase functions deploy <name> --no-verify-jwt
 
 ---
 
-## 4. Edge Function Reference (6 total)
+## 4. Edge Function Reference (8 total)
 
 | Function | URL | Triggered by | Requires |
 |----------|-----|--------------|----------|
@@ -93,6 +98,8 @@ supabase functions deploy <name> --no-verify-jwt
 | `send-email` | `.../send-email` | Admin → Send Notification | `RESEND_API_KEY` |
 | `send-push` | `.../send-push` | Browser push notification events | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` |
 | `mpesa-stkpush` | `.../mpesa-stkpush` | (Future — STK Push to member phones) | M-Pesa Daraja credentials |
+| `whatsapp-webhook` | `.../whatsapp-webhook` | Inbound WhatsApp messages from Africa's Talking | `VITE_GEMINI_API_KEY`, `AT_USERNAME`, `AT_API_KEY`, `AT_SHORTCODE` |
+| `ai-auditor` | `.../ai-auditor` | Weekly Sunday cron (`0 8 * * 0`) | `VITE_GEMINI_API_KEY`, `AT_USERNAME`, `AT_API_KEY`, `CRON_SECRET` |
 
 All function URLs: `https://oriayiuaucsldkledjqt.supabase.co/functions/v1/<name>`
 
@@ -113,6 +120,9 @@ All function URLs: `https://oriayiuaucsldkledjqt.supabase.co/functions/v1/<name>
 | `user_settings` | User preferences | `user_id`, `settings` (JSONB) |
 | `push_subscriptions` | Browser push subs | `user_id`, `endpoint`, `keys` (JSONB) |
 | `audit_logs` | All admin actions | `user_id`, `action`, `details`, `created_at` |
+| `whatsapp_sessions` | WhatsApp sessions linked to chama members | `wa_id`, `member_id`, `chama_id`, `state`, `context` |
+| `whatsapp_messages` | Inbound/outbound WhatsApp message log | `session_id`, `chama_id`, `direction`, `message_type`, `content`, `media_url` |
+| `minutes_archive` | Voice note minutes from WhatsApp | `chama_id`, `created_by`, `title`, `summary`, `decisions`, `action_items` |
 
 ---
 
@@ -151,7 +161,7 @@ All function URLs: `https://oriayiuaucsldkledjqt.supabase.co/functions/v1/<name>
 # Development
 npm run dev                          # Start dev server
 npm run build                        # Build for production
-npm test                             # Run tests (41 tests, 10 files)
+npm test                             # Run tests (44 tests, 11 files)
 npm run typecheck                    # TypeScript check (0 errors)
 
 # Supabase
@@ -207,6 +217,13 @@ git push origin main                 # Push to GitHub
 3. User is redirected to Stripe's checkout page → enters card details
 4. Stripe sends webhook event → `stripe-webhook` edge function updates `chamas.plan`
 5. User redirected back to Settings → sees success message
+
+### WhatsApp AI Features
+1. **M-Pesa via SMS:** Members forward M-Pesa confirmation SMS to the AT WhatsApp number → AI parses it → auto-logs contribution
+2. **Voice notes:** Members send voice notes → Google STT transcribes → Gemini structures into minutes → saved to `minutes_archive`
+3. **AI Auditor:** Every Sunday 8 AM EAT → cron calls `ai-auditor` → Gemini generates chama summary → broadcast via WhatsApp
+4. **Loan Risk:** Dashboard shows risk badge per loan → calls `/api/loan-risk` Vercel route → Gemini analyzes contribution history
+5. **Onboarding:** New invited members get WhatsApp intro message (best-effort)
 
 ### M-Pesa (manual — current flow)
 1. Member sends contribution to `0797 132 940` via M-Pesa

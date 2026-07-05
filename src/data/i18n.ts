@@ -198,6 +198,14 @@ export interface Translations {
   cacheClear: string;
   systemUpdate: string;
   
+  // WhatsApp
+  whatsappIntegration: string;
+  aiAuditor: string;
+  riskThreshold: string;
+  weeklyAuditSummary: string;
+  forwardMpesa: string;
+  commands: string;
+
   // Errors
   somethingWentWrong: string;
   tryAgain: string;
@@ -433,6 +441,14 @@ export const translations: Record<Language, Translations> = {
     contributionReminder: 'Contribution reminder',
     warning: 'Warning',
     info: 'Information',
+
+    // WhatsApp
+    whatsappIntegration: 'WhatsApp Integration',
+    aiAuditor: 'AI Auditor',
+    riskThreshold: 'Risk Threshold',
+    weeklyAuditSummary: 'Weekly Sunday audit summary sent via WhatsApp',
+    forwardMpesa: 'Forward M-Pesa SMS to auto-log contributions',
+    commands: 'Commands',
   },
   sw: {
     // Common
@@ -649,6 +665,14 @@ export const translations: Record<Language, Translations> = {
     contributionReminder: 'Kumbusho la mchango',
     warning: 'Onyo',
     info: 'Habari',
+
+    // WhatsApp
+    whatsappIntegration: 'Muunganisho wa WhatsApp',
+    aiAuditor: 'AI Mkaguzi',
+    riskThreshold: 'Kiwango cha Hatari',
+    weeklyAuditSummary: 'Muhtasari wa ukaguzi wa kila Jumapili kutumwa kupitia WhatsApp',
+    forwardMpesa: 'Tuma SMS ya M-Pesa kurekodi michango kiotomatiki',
+    commands: 'Amri',
   },
 };
 

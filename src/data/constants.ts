@@ -11,6 +11,10 @@ export const PLAN_PRICES = {
 } as const;
 export const DEFAULT_MEETING_TIME = '10:00';
 
+export const AT_SHORTCODE = '24300';
+export const GEMINI_MODEL = 'gemini-2.0-flash';
+export const WHATSAPP_ONBOARDING_MSG = `Karibu ChamaOS! 💰\nSubscribe to stay connected:\nJibu CHAMA to 24300\n\nWhat you can do:\n• Forward M-Pesa SMS to log contributions\n• Reply HELP for menu`;
+
 export const PLAN_LIMITS: Record<string, { members: number; contributions: boolean; loans: boolean; analytics: boolean }> = {
   free: { members: 10, contributions: true, loans: false, analytics: false },
   starter: { members: 30, contributions: true, loans: true, analytics: true },
