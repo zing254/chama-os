@@ -1,0 +1,7 @@
+{"type":"click","text":"📜 Sections fade in + slide up when scrolled into view","choice":"fade-in","id":null,"timestamp":1783289546248}
+{"type":"click","text":"📜 Sections fade in + slide up when scrolled into view","choice":"fade-in","id":null,"timestamp":1783289548222}
+{"type":"click","text":"🔢 Stats count up from 0 when they enter viewport","choice":"counter","id":null,"timestamp":1783289556568}
+{"type":"click","text":"📜 Sections fade in + slide up when scrolled into view","choice":"fade-in","id":null,"timestamp":1783289559379}
+{"type":"click","text":"🃏 Feature cards lift on hover with subtle glow","choice":"card-hover","id":null,"timestamp":1783289560835}
+{"type":"click","text":"🧩 Feature grid cards stagger-entrance (each card 100ms apart)","choice":"stagger","id":null,"timestamp":1783289562009}
+{"type":"click","text":"💬 Testimonials auto-rotate every 5s with fade transition","choice":"testimonial","id":null,"timestamp":1783289563205}
