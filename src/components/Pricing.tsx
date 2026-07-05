@@ -4,6 +4,7 @@ import { mpesa } from '../data/mpesa';
 import { supabase } from '../data/supabase';
 import { useAuth } from '../data/auth-context';
 import { useToast } from '../data/toast-context';
+import { useData } from '../data/context';
 import { loadStripe } from '@stripe/stripe-js';
 
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
@@ -12,6 +13,7 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 export default function Pricing() {
   const { user } = useAuth();
+  const { chama } = useData();
   const toast = useToast();
   const [billingAnnual, setBillingAnnual] = useState(false);
   const [showMpesa, setShowMpesa] = useState(false);
@@ -130,7 +132,7 @@ export default function Pricing() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">📋</span>
           <div>
-            <div className="font-bold">You're on the Starter Plan</div>
+            <div className="font-bold">You're on the {chama?.plan ? chama.plan.charAt(0).toUpperCase() + chama.plan.slice(1) : 'Free'} Plan</div>
             <div className="text-green-200 text-sm">Subscription active</div>
           </div>
         </div>
@@ -142,7 +144,7 @@ export default function Pricing() {
         {plans.map(plan => {
           const price = billingAnnual && plan.price > 0 ? Math.round(plan.price * 0.8) : plan.price;
           const colors = colorMap[plan.color];
-          const isCurrent = plan.name === 'Starter';
+          const isCurrent = plan.name.toLowerCase() === (chama?.plan || 'free');
           return (
             <div key={plan.name} className={`relative bg-white rounded-2xl border-2 p-6 transition-all hover:-translate-y-1 hover:shadow-xl ${colors.border}`}>
               {plan.popular && (

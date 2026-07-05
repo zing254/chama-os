@@ -137,6 +137,41 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Notifications table (for in-app + email notifications)
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chama_id UUID REFERENCES chamas(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  type TEXT NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'warning', 'error', 'payment_failed', 'payment_success', 'member_joined', 'loan_approved', 'meeting_reminder')),
+  title TEXT,
+  message TEXT NOT NULL,
+  read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view own notifications" ON notifications
+  FOR SELECT USING (user_id = auth.uid() OR user_has_chama_access(chama_id));
+CREATE POLICY "Admin manage notifications" ON notifications
+  FOR ALL USING (is_chama_admin(chama_id));
+
+CREATE INDEX IF NOT EXISTS idx_notifications_chama ON notifications(chama_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+
+-- User settings table (for notification preferences etc.)
+CREATE TABLE IF NOT EXISTS user_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) UNIQUE NOT NULL,
+  chama_id UUID REFERENCES chamas(id) ON DELETE CASCADE,
+  settings JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage own settings" ON user_settings
+  FOR ALL USING (user_id = auth.uid());
+
 -- 2. BACKWARD COMPATIBILITY MIGRATIONS
 
 -- Add chama_id to tables that may lack it

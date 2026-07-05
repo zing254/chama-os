@@ -10,21 +10,40 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [loginBlockedUntil, setLoginBlockedUntil] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const now = Date.now();
+    if (loginBlockedUntil > now) {
+      const remaining = Math.ceil((loginBlockedUntil - now) / 1000);
+      setError(`Too many attempts. Try again in ${remaining} seconds.`);
+      return;
+    }
+
     setLoading(true);
 
     const { error: authError } = await signIn(email, password);
 
     if (authError) {
-      setError(authError);
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+      if (newAttempts >= 3) {
+        const blockUntil = now + 30000;
+        setLoginBlockedUntil(blockUntil);
+        setError('Too many failed attempts. Blocked for 30 seconds.');
+      } else {
+        setError(authError);
+      }
       setLoading(false);
       return;
     }
 
-    const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'moderator';
+    const role = user?.role as string | undefined;
+    const isAdmin = role === 'admin' || role === 'super_admin' || role === 'moderator';
     if (isAdmin) {
       navigate('/admin/dashboard');
     } else {

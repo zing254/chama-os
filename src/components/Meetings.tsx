@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Meeting } from '../data/types';
 import { useData } from '../data/context';
 import { DEFAULT_MEETING_TIME } from '../data/constants';
+import { sendSMS, sendWhatsApp } from '../data/notifications-helper';
 
 export default function Meetings() {
   const { meetings, members, loading, addMeeting } = useData();
@@ -69,10 +70,10 @@ export default function Meetings() {
                 </div>
               </div>
               <div className="mt-4 flex gap-2">
-                <button onClick={e => { e.stopPropagation(); }} className="bg-white text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                <button onClick={e => { e.stopPropagation(); members.forEach(member => sendSMS(member.phone, `Reminder: ${m.title} on ${new Date(m.date).toLocaleDateString('en-KE')} at ${m.time}. Venue: ${m.venue}`)); }} className="bg-white text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                   📤 Share Agenda
                 </button>
-                <button onClick={e => { e.stopPropagation(); }} className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
+                <button onClick={e => { e.stopPropagation(); members.forEach(member => sendWhatsApp(member.phone, `📅 *Meeting Reminder*\n\n${m.title}\nDate: ${new Date(m.date).toLocaleDateString('en-KE')}\nTime: ${m.time}\nVenue: ${m.venue}`)); }} className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
                   📱 WhatsApp Reminder
                 </button>
                 <button onClick={e => { e.stopPropagation(); }} className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
@@ -177,7 +178,7 @@ export default function Meetings() {
               )}
 
               <div className="flex gap-2">
-                <button className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
+                <button onClick={() => members.forEach(m => sendWhatsApp(m.phone, `📋 *Meeting Details*\n\n${selectedMeeting.title}\nDate: ${new Date(selectedMeeting.date).toLocaleDateString('en-KE')}\nTime: ${selectedMeeting.time}\nVenue: ${selectedMeeting.venue}\n\nAgenda:\n${selectedMeeting.agenda.map((a, i) => `${i+1}. ${a}`).join('\n')}`))} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
                   📤 Share via WhatsApp
                 </button>
                 <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">

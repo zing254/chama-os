@@ -10,6 +10,8 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [signupAttempts, setSignupAttempts] = useState(0);
+  const [signupBlockedUntil, setSignupBlockedUntil] = useState(0);
 
   const { signUpWithChamaName } = useAuth();
   const navigate = useNavigate();
@@ -33,12 +35,27 @@ export default function Signup() {
       return;
     }
 
+    const now = Date.now();
+    if (signupBlockedUntil > now) {
+      const remaining = Math.ceil((signupBlockedUntil - now) / 1000);
+      setError(`Too many attempts. Try again in ${remaining} seconds.`);
+      return;
+    }
+
     setLoading(true);
 
     const result = await signUpWithChamaName(email, password, chamaName);
 
     if (result.error) {
-      setError(result.error);
+      const newAttempts = signupAttempts + 1;
+      setSignupAttempts(newAttempts);
+      if (newAttempts >= 3) {
+        const blockUntil = now + 30000;
+        setSignupBlockedUntil(blockUntil);
+        setError(`Too many failed attempts. Blocked for 30 seconds.`);
+      } else {
+        setError(result.error);
+      }
       setLoading(false);
     } else {
       setSuccess(true);

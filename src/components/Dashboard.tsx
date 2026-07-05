@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useData } from '../data/context';
 import { useAuth } from '../data/auth-context';
-import { DEFAULT_INTEREST_RATE } from '../data/constants';
+import { useToast } from '../data/toast-context';
+import { DEFAULT_INTEREST_RATE, DEFAULT_MONTHLY_CONTRIBUTION } from '../data/constants';
+import { sendSMS, sendWhatsApp } from '../data/notifications-helper';
 
 function formatKsh(n: number) {
   return `KSh ${n.toLocaleString()}`;
@@ -9,7 +12,19 @@ function formatKsh(n: number) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { chama, members, contributions, loans, meetings, loading } = useData();
+  const { chama, members, contributions, loans, meetings, loading, addContribution } = useData();
+  const toast = useToast();
+  const [showRecord, setShowRecord] = useState(false);
+  const [contribError, setContribError] = useState('');
+  const [contribSuccess, setContribSuccess] = useState(false);
+  const [newContribution, setNewContribution] = useState({
+    memberId: '',
+    amount: chama?.monthlyContribution || DEFAULT_MONTHLY_CONTRIBUTION,
+    mpesaRef: '',
+    type: 'monthly' as const,
+    status: 'pending' as const,
+    date: new Date().toISOString().split('T')[0],
+  });
   
   if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
 
@@ -50,11 +65,11 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Good morning, {user?.email?.split('@')[0] || 'Admin'} 👋</h1>
+          <h1 className="text-2xl font-black text-gray-900">{(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })()}, {user?.email?.split('@')[0] || 'Admin'} 👋</h1>
           <p className="text-gray-500 text-sm mt-0.5">{chama?.name || 'Your Chama'} · Active Members: {activeMembers.length}</p>
         </div>
         <div className="flex gap-2">
-          <button className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all shadow-sm">
+          <button onClick={() => setShowRecord(true)} className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all shadow-sm">
             + Record Payment
           </button>
           <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl transition-all">
@@ -190,7 +205,7 @@ export default function Dashboard() {
               <button className="bg-white text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 View Agenda
               </button>
-              <button className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
+              <button onClick={() => members.forEach(m => sendWhatsApp(m.phone, `📅 *Meeting Reminder*\n\n${upcomingMeeting?.title}\n${upcomingMeeting?.date} at ${upcomingMeeting?.time}\n📍 ${upcomingMeeting?.venue}`))} className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
                 Send Reminder
               </button>
             </div>
@@ -219,12 +234,12 @@ export default function Dashboard() {
             <h3 className="font-bold text-gray-800 text-sm mb-3">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                ['💳', 'Record M-Pesa', 'bg-green-600 text-white'],
-                ['📝', 'New Loan', 'bg-blue-600 text-white'],
-                ['📨', 'Send Reminder', 'bg-orange-500 text-white'],
-                ['📄', 'Generate Report', 'bg-purple-600 text-white'],
-              ].map(([icon, label, cls]) => (
-                <button key={label as string} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 ${cls}`}>
+                { icon: '💳', label: 'Record M-Pesa', cls: 'bg-green-600 text-white', onClick: () => setShowRecord(true) },
+                { icon: '📝', label: 'New Loan', cls: 'bg-blue-600 text-white', onClick: () => {} },
+                { icon: '📨', label: 'Send Reminder', cls: 'bg-orange-500 text-white', onClick: () => members.forEach(m => sendSMS(m.phone, `Dear ${m.name}, this is a reminder about your upcoming chama contribution. Please ensure timely payment.`)) },
+                { icon: '📄', label: 'Generate Report', cls: 'bg-purple-600 text-white', onClick: () => {} },
+              ].map(({ icon, label, cls, onClick }) => (
+                <button key={label} onClick={onClick} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 ${cls}`}>
                   <span>{icon}</span><span>{label}</span>
                 </button>
               ))}
@@ -232,6 +247,113 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Record Payment Modal */}
+      {showRecord && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-black text-gray-900 text-lg">Record Payment</h2>
+              <button onClick={() => { setShowRecord(false); setContribError(''); setContribSuccess(false); }} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            {contribSuccess && (
+              <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 mb-4 text-sm font-semibold">
+                ✅ Payment recorded successfully!
+              </div>
+            )}
+            {contribError && (
+              <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4 mb-4 text-sm">
+                {contribError}
+              </div>
+            )}
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Member</label>
+                <select
+                  value={newContribution.memberId}
+                  onChange={(e) => setNewContribution({ ...newContribution, memberId: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                >
+                  <option value="">Select member...</option>
+                  {members.filter(m => m.status === 'active').map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Amount (KSh)</label>
+                <input
+                  type="number"
+                  value={newContribution.amount}
+                  onChange={(e) => setNewContribution({ ...newContribution, amount: Number(e.target.value) })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Contribution Type</label>
+                <select
+                  value={newContribution.type}
+                  onChange={(e) => setNewContribution({ ...newContribution, type: e.target.value as any })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                >
+                  <option value="monthly">Monthly Contribution</option>
+                  <option value="shares">Shares</option>
+                  <option value="fine">Fine</option>
+                  <option value="special">Special Levy</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">M-Pesa Reference (optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. QHJ4K7P2X1"
+                  value={newContribution.mpesaRef}
+                  onChange={(e) => setNewContribution({ ...newContribution, mpesaRef: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400 font-mono"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (!newContribution.memberId) {
+                    setContribError('Please select a member');
+                    return;
+                  }
+                  if (newContribution.amount <= 0) {
+                    setContribError('Please enter a valid amount');
+                    return;
+                  }
+                  const member = members.find(m => m.id === newContribution.memberId);
+                  if (!member) return;
+                  try {
+                    addContribution({
+                      ...newContribution,
+                      memberName: member.name,
+                    });
+                    toast.success('Payment recorded', `KSh ${newContribution.amount} contribution saved`);
+                    setContribSuccess(true);
+                    setTimeout(() => {
+                      setShowRecord(false);
+                      setContribSuccess(false);
+                      setNewContribution({
+                        memberId: '',
+                        amount: chama?.monthlyContribution || DEFAULT_MONTHLY_CONTRIBUTION,
+                        mpesaRef: '',
+                        type: 'monthly',
+                        status: 'pending',
+                        date: new Date().toISOString().split('T')[0],
+                      });
+                    }, 1500);
+                  } catch {
+                    toast.error('Recording failed', 'Could not record payment');
+                    setContribError('Failed to record payment');
+                  }
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-1 transition-colors"
+              >
+                Save Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

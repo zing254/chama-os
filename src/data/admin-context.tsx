@@ -32,8 +32,9 @@ export function useAdmin() {
 export function AdminProvider({ children }: { children: ReactNode }) {
   const { user, loading, signIn: authSignIn, signOut: authSignOut } = useAuth();
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'moderator';
-  const admin: Admin | null = isAdmin ? {
+  const role = user?.role as string | undefined;
+  const isAdmin = role === 'admin' || role === 'super_admin' || role === 'moderator';
+  const admin: Admin | null = isAdmin && user ? {
     id: user.id,
     email: user.email,
     name: user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),

@@ -17,6 +17,8 @@ const AdminLayout = React.lazy(() => import('./components/admin/AdminLayout'));
 const MemberLayout = React.lazy(() => import('./components/member/MemberLayout'));
 const Login = React.lazy(() => import('./components/auth/Login'));
 const Signup = React.lazy(() => import('./components/auth/Signup'));
+const ForgotPassword = React.lazy(() => import('./components/auth/ForgotPassword'));
+const ResetPassword = React.lazy(() => import('./components/auth/ResetPassword'));
 const AuthCallback = React.lazy(() => import('./components/auth/AuthCallback'));
 
 function RoutePage({ title, children }: { title: string; children: React.ReactNode }) {
@@ -65,6 +67,8 @@ export default function App() {
                       <Route path="/login" element={<ErrorBoundary><RoutePage title="Sign In"><Login /></RoutePage></ErrorBoundary>} />
                       <Route path="/signup" element={<ErrorBoundary><RoutePage title="Sign Up"><Signup /></RoutePage></ErrorBoundary>} />
                       <Route path="/auth/callback" element={<ErrorBoundary><RoutePage title=""><AuthCallback /></RoutePage></ErrorBoundary>} />
+                      <Route path="/forgot-password" element={<ErrorBoundary><RoutePage title="Forgot Password"><ForgotPassword /></RoutePage></ErrorBoundary>} />
+                      <Route path="/reset-password" element={<ErrorBoundary><RoutePage title="Reset Password"><ResetPassword /></RoutePage></ErrorBoundary>} />
                       <Route path="/dashboard" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Dashboard"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
                       <Route path="/members" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Members"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />
                       <Route path="/contributions" element={<ErrorBoundary><ProtectedRoute><RoutePage title="Contributions"><AppLayout /></RoutePage></ProtectedRoute></ErrorBoundary>} />

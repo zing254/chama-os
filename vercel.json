@@ -1,24 +1,6 @@
 {
-  "routes": [
-    { "handle": "filesystem" },
-    {
-      "src": "/(.*)",
-      "headers": {
-        "Cache-Control": "public, max-age=0, must-revalidate",
-        "Content-Type": "text/html"
-      },
-      "dest": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript"
-        }
-      ]
-    }
+  "rewrites": [
+    { "source": "/api/mpesa-callback", "destination": "/api/mpesa-callback" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

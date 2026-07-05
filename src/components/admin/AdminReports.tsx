@@ -82,7 +82,55 @@ export default function AdminReports() {
   };
 
   const generatePDF = () => {
-    alert('PDF export coming soon! Use CSV for now.');
+    const title = reportType === 'summary' ? 'Summary Report'
+      : `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`;
+
+    let tableRows = '';
+    let reportHeaders = '';
+    if (reportType === 'summary') {
+      tableRows = [
+        { metric: 'Total Members', value: stats.totalMembers },
+        { metric: 'Active Members', value: stats.activeMembers },
+        { metric: 'Contributions (MTD)', value: `KSh ${(stats.totalContributions / 1000).toFixed(0)}K` },
+        { metric: 'Active Loans', value: stats.totalLoans },
+        { metric: 'Overdue Loans', value: stats.overdueLoans },
+        { metric: 'Loans Outstanding', value: `KSh ${(stats.totalLoansOutstanding / 1000).toFixed(0)}K` },
+        { metric: 'Upcoming Meetings', value: stats.upcomingMeetings },
+      ].map(r => `<tr><td style="padding:8px 12px;border:1px solid #ddd">${r.metric}</td><td style="padding:8px 12px;border:1px solid #ddd;font-weight:bold">${r.value}</td></tr>`).join('');
+    } else {
+      const data = reportType === 'members' ? members
+        : reportType === 'contributions' ? contributions
+        : reportType === 'loans' ? loans
+        : meetings;
+      const keys = data.length > 0 ? Object.keys(data[0]).filter(k => k !== 'id' && k !== 'chama_id') : [];
+      reportHeaders = keys.map(k => `<th style="padding:8px 12px;border:1px solid #ddd;background:#f5f5f5;text-align:left;font-size:12px">${k}</th>`).join('');
+      tableRows = data.map(row =>
+        `<tr>${keys.map(k => `<td style="padding:8px 12px;border:1px solid #ddd;font-size:12px">${(row as Record<string, unknown>)[k] ?? ''}</td>`).join('')}</tr>`
+      ).join('');
+    }
+
+    const date = new Date().toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;padding:40px;color:#333}
+h1{font-size:24px;margin-bottom:4px}
+.sub{color:#666;font-size:13px;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;margin-top:16px}
+th{font-weight:bold;text-transform:uppercase;font-size:11px;color:#555}
+tr:nth-child(even){background:#fafafa}
+@media print{body{padding:20px}@page{margin:15mm}}
+</style></head><body>
+<h1>${title}</h1>
+<p class="sub">Generated: ${date}${chama ? ` &mdash; ${chama.name}` : ''}</p>
+<table>${reportType === 'summary' ? '' : `<thead><tr>${reportHeaders}</tr></thead>`}<tbody>${tableRows}</tbody></table>
+<script>window.print()</script></body></html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
   };
 
   if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;

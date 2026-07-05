@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Member } from '../data/types';
 import { useData } from '../data/context';
+import { useToast } from '../data/toast-context';
+import { PLAN_LIMITS } from '../data/constants';
+import { sendSMS } from '../data/notifications-helper';
 
 const roleColors: Record<string, string> = {
   chairman: 'bg-yellow-100 text-yellow-800',
@@ -17,10 +20,12 @@ const roleIcons: Record<string, string> = {
 };
 
 export default function Members() {
-  const { members, loading, addMember } = useData();
+  const { chama, members, loading, addMember, updateMember, deleteMember } = useData();
+  const toast = useToast();
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   
   const [newMember, setNewMember] = useState({
@@ -31,6 +36,8 @@ export default function Members() {
   });
   const [addError, setAddError] = useState('');
   const [addSuccess, setAddSuccess] = useState(false);
+
+  const [editForm, setEditForm] = useState({ name: '', phone: '', email: '' });
 
   const filtered = members.filter(m => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.phone.includes(search);
@@ -199,13 +206,84 @@ export default function Members() {
               </div>
 
               <div className="flex gap-2">
-                <button className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
-                  📱 Send SMS
+                <button
+                  onClick={() => { setEditingMember(selectedMember); setEditForm({ name: selectedMember.name, phone: selectedMember.phone, email: selectedMember.email }); }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                >
+                  ✏️ Edit
                 </button>
-                <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
-                  📋 View Statement
+                <button
+                  onClick={() => {
+                    if (confirm(`Delete ${selectedMember.name}? This cannot be undone.`)) {
+                      deleteMember(selectedMember.id).then(() => {
+                        toast.success('Member deleted', `${selectedMember.name} has been removed`);
+                        setSelectedMember(null);
+                      }).catch(() => toast.error('Delete failed', 'Could not delete member'));
+                    }
+                  }}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                >
+                  🗑️ DELETE
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit member modal */}
+      {editingMember && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-black text-gray-900 text-lg">Edit {editingMember.name}</h2>
+              <button onClick={() => setEditingMember(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100"
+                />
+              </div>
+              <button
+                onClick={async () => {
+                  if (!editForm.name.trim()) { toast.error('Validation', 'Name is required'); return; }
+                  if (!editForm.phone.trim()) { toast.error('Validation', 'Phone is required'); return; }
+                  try {
+                    await updateMember(editingMember.id, editForm);
+                    toast.success('Member updated', `${editForm.name} has been updated`);
+                    setSelectedMember(prev => prev ? { ...prev, ...editForm } : null);
+                    setEditingMember(null);
+                  } catch {
+                    toast.error('Update failed', 'Could not update member');
+                  }
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-2 transition-colors"
+              >
+                💾 Save Changes
+              </button>
             </div>
           </div>
         </div>
@@ -283,8 +361,14 @@ export default function Members() {
                     setAddError('Please enter phone number');
                     return;
                   }
+                  const limits = PLAN_LIMITS[chama?.plan || 'free'];
+                  if (members.length >= limits.members) {
+                    setAddError(`Your ${chama?.plan} plan is limited to ${limits.members} members. Upgrade to add more.`);
+                    return;
+                  }
                   try {
                     addMember(newMember);
+                    sendSMS(newMember.phone, `Welcome to ${chama?.name || 'the chama'}! You've been added as a member.`);
                     setAddSuccess(true);
                     setTimeout(() => {
                       setShowAddForm(false);

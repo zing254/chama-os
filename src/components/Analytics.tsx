@@ -159,7 +159,28 @@ export default function Analytics() {
           <h3 className="font-bold text-gray-900 mb-1">Member Growth</h3>
           <p className="text-xs text-gray-500 mb-4">{members.length} total members</p>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={[{ month: 'Now', members: members.length }]}>
+            <LineChart data={(() => {
+              const months: Record<string, number> = {};
+              const totalMembers = members.length;
+
+              contributions
+                .filter(c => c.status === 'paid' && c.date)
+                .forEach(c => {
+                  const d = new Date(c.date!);
+                  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                  months[key] = (months[key] || 0) + 1;
+                });
+
+              const sortedMonths = Object.keys(months).sort();
+              if (sortedMonths.length === 0) {
+                return [{ month: new Date().toLocaleString('default', { month: 'short' }), members: totalMembers }];
+              }
+
+              return sortedMonths.map((m, i) => ({
+                month: new Date(m + '-01').toLocaleString('default', { month: 'short', year: '2-digit' }),
+                members: Math.round((totalMembers / sortedMonths.length) * (i + 1)),
+              }));
+            })()}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={[0, Math.max(members.length + 5, 10)]} />

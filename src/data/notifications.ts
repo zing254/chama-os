@@ -36,7 +36,7 @@ class PushNotificationService {
         return null;
       }
 
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.register('/sw.js');
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey),
@@ -81,39 +81,26 @@ class PushNotificationService {
   }
 
   async notify(userId: string, payload: NotificationPayload): Promise<boolean> {
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('*')
-      .eq('user_id', userId);
-
-    if (!subscriptions?.length) return false;
-
     const { data: result } = await supabase.functions.invoke('send-push', {
       body: {
-        subscriptions: subscriptions.map(s => ({
-          endpoint: s.endpoint,
-          keys: s.keys,
-        })),
-        payload,
+        title: payload.title,
+        body: payload.body,
       },
     });
 
-    return result?.success || false;
+    return (result?.sent ?? 0) > 0;
   }
 
   async notifyAllMembers(payload: NotificationPayload, chamaId?: string): Promise<number> {
-    let query = supabase.from('members').select('id, email');
-    if (chamaId) query = query.eq('chama_id', chamaId);
-    const { data: members } = await query;
+    const { data: result } = await supabase.functions.invoke('send-push', {
+      body: {
+        chamaId,
+        title: payload.title,
+        body: payload.body,
+      },
+    });
 
-    if (!members?.length) return 0;
-
-    const results = await Promise.allSettled(
-      members.map(member => this.notify(member.id, payload))
-    );
-    const successCount = results.filter(r => r.status === 'fulfilled' && r.value).length;
-
-    return successCount;
+    return result?.sent ?? 0;
   }
 
   private urlBase64ToUint8Array(base64String: string): ArrayBuffer {

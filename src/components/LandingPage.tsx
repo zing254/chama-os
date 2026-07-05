@@ -416,7 +416,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm">© 2024 ChamaOS Ltd. All rights reserved. Reg. No. KE/2024/78432</p>
+            <p className="text-sm">© {new Date().getFullYear()} ChamaOS Ltd. All rights reserved. Reg. No. KE/2024/78432</p>
             <div className="flex gap-4 text-sm">
               <a href="#" className="hover:text-green-400 transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-green-400 transition-colors">Terms of Service</a>

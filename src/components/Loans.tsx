@@ -1,14 +1,22 @@
 import { useState } from 'react';
 import { Loan } from '../data/types';
 import { useData } from '../data/context';
+import { useToast } from '../data/toast-context';
 import { DEFAULT_INTEREST_RATE } from '../data/constants';
 
 export default function Loans() {
-  const { loans, members, loading, addLoan } = useData();
+  const { loans, members, loading, addLoan, updateLoan, deleteLoan, addRepayment } = useData();
+  const toast = useToast();
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [showNewLoan, setShowNewLoan] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [editLoan, setEditLoan] = useState<Loan | null>(null);
+  const [editForm, setEditForm] = useState({ amount: 0, interest: 10, status: 'active' as Loan['status'], balance: 0 });
   
+  const [repaymentModal, setRepaymentModal] = useState<{ loanId: string; open: boolean }>({ loanId: '', open: false });
+  const [repaymentForm, setRepaymentForm] = useState({ amount: 0, date: new Date().toISOString().split('T')[0], mpesa_ref: '' });
+  const [repaymentSubmitting, setRepaymentSubmitting] = useState(false);
+
   const [newLoan, setNewLoan] = useState({
     memberId: '',
     amount: 50000,
@@ -215,11 +223,36 @@ export default function Loans() {
               )}
 
               <div className="flex gap-2">
-                <button className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
+                <button
+                  onClick={() => { setRepaymentModal({ loanId: selectedLoan.id, open: true }); setRepaymentForm({ amount: 0, date: new Date().toISOString().split('T')[0], mpesa_ref: '' }); }}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                >
                   + Record Repayment
                 </button>
                 <button className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
                   📱 Send Reminder
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditLoan(selectedLoan); setEditForm({ amount: selectedLoan.amount, interest: selectedLoan.interest, status: selectedLoan.status, balance: selectedLoan.balance }); }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete this loan of KSh ${selectedLoan.amount} for ${selectedLoan.memberName}?`)) {
+                      deleteLoan(selectedLoan.id).then(() => {
+                        toast.success('Loan deleted', 'Loan has been removed');
+                        setSelectedLoan(null);
+                      }).catch(() => toast.error('Delete failed', 'Could not delete loan'));
+                    }
+                  }}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
+                >
+                  🗑️ Delete
                 </button>
               </div>
             </div>
@@ -333,6 +366,141 @@ export default function Loans() {
                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-1 transition-colors"
               >
                 Submit for Approval
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Repayment Modal */}
+      {repaymentModal.open && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-black text-gray-900 text-lg">Record Repayment</h2>
+              <button onClick={() => setRepaymentModal({ loanId: '', open: false })} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Amount (KSh)</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={repaymentForm.amount || ''}
+                  onChange={(e) => setRepaymentForm({ ...repaymentForm, amount: Number(e.target.value) })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Date</label>
+                <input
+                  type="date"
+                  value={repaymentForm.date}
+                  onChange={(e) => setRepaymentForm({ ...repaymentForm, date: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">M-Pesa Reference <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="text"
+                  placeholder="e.g. OK123ABC"
+                  value={repaymentForm.mpesa_ref}
+                  onChange={(e) => setRepaymentForm({ ...repaymentForm, mpesa_ref: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <button
+                disabled={repaymentSubmitting || repaymentForm.amount <= 0}
+                onClick={async () => {
+                  if (repaymentForm.amount <= 0) { toast.error('Validation', 'Amount must be greater than 0'); return; }
+                  setRepaymentSubmitting(true);
+                  try {
+                    await addRepayment({ loan_id: repaymentModal.loanId, ...repaymentForm });
+                    toast.success('Repayment recorded', 'Repayment has been saved');
+                    setRepaymentModal({ loanId: '', open: false });
+                  } catch {
+                    toast.error('Recording failed', 'Could not record repayment');
+                  } finally {
+                    setRepaymentSubmitting(false);
+                  }
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-bold py-3 rounded-xl mt-2 transition-colors"
+              >
+                {repaymentSubmitting ? 'Recording...' : '💾 Record Repayment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Loan Modal */}
+      {editLoan && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-black text-gray-900 text-lg">Edit Loan</h2>
+              <button onClick={() => setEditLoan(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Member</label>
+                <div className="text-sm text-gray-900 font-semibold px-4 py-2.5 bg-gray-50 rounded-xl">{editLoan.memberName}</div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Loan Amount (KSh)</label>
+                <input
+                  type="number"
+                  value={editForm.amount}
+                  onChange={(e) => setEditForm({ ...editForm, amount: Number(e.target.value) })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Interest (%)</label>
+                <input
+                  type="number"
+                  value={editForm.interest}
+                  onChange={(e) => setEditForm({ ...editForm, interest: Number(e.target.value) })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Balance (KSh)</label>
+                <input
+                  type="number"
+                  value={editForm.balance}
+                  onChange={(e) => setEditForm({ ...editForm, balance: Number(e.target.value) })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as Loan['status'] })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                >
+                  <option value="active">Active</option>
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </div>
+              <button
+                onClick={async () => {
+                  if (editForm.amount <= 0) { toast.error('Validation', 'Amount must be greater than 0'); return; }
+                  try {
+                    await updateLoan(editLoan.id, { amount: editForm.amount, interest: editForm.interest, status: editForm.status, balance: editForm.balance });
+                    toast.success('Loan updated', `Loan for ${editLoan.memberName} updated`);
+                    setEditLoan(null);
+                  } catch {
+                    toast.error('Update failed', 'Could not update loan');
+                  }
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-2 transition-colors"
+              >
+                💾 Save Changes
               </button>
             </div>
           </div>

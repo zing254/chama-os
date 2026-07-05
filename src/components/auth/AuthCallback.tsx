@@ -6,13 +6,22 @@ export default function AuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'recovery'>('loading');
   const [message, setMessage] = useState('Verifying your account...');
 
   useEffect(() => {
+    const type = searchParams.get('type');
+
+    if (type === 'recovery') {
+      setStatus('recovery');
+      setMessage('Redirecting to password reset...');
+      setTimeout(() => navigate('/reset-password'), 1000);
+      return;
+    }
+
     const checkVerification = async () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       if (user?.emailVerified) {
         setStatus('success');
         setMessage('Email verified successfully!');
@@ -27,7 +36,18 @@ export default function AuthCallback() {
     };
 
     checkVerification();
-  }, [user, navigate]);
+  }, [user, navigate, searchParams]);
+
+  if (status === 'recovery') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg">{message}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (status === 'loading') {
     return (

@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useData } from '../data/context';
+import { useToast } from '../data/toast-context';
 import { DEFAULT_MONTHLY_CONTRIBUTION } from '../data/constants';
+import type { Contribution } from '../data/types';
 
 export default function Contributions() {
-  const { chama, contributions, members, loading, addContribution } = useData();
+  const { chama, contributions, members, loading, addContribution, updateContribution, deleteContribution } = useData();
+  const toast = useToast();
   const [filterMonth, setFilterMonth] = useState(new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
   const [filterStatus, setFilterStatus] = useState('all');
   const [showRecord, setShowRecord] = useState(false);
@@ -11,6 +14,9 @@ export default function Contributions() {
   const [mpesaStep, setMpesaStep] = useState(0);
   const [contribError, setContribError] = useState('');
   const [contribSuccess, setContribSuccess] = useState(false);
+  const [editContribution, setEditContribution] = useState<Contribution | null>(null);
+  const [editForm, setEditForm] = useState({ amount: 0, status: 'pending' as Contribution['status'], type: 'monthly' as Contribution['type'] });
+
   const [newContribution, setNewContribution] = useState({
     memberId: '',
     amount: chama?.monthlyContribution || DEFAULT_MONTHLY_CONTRIBUTION,
@@ -151,9 +157,30 @@ export default function Contributions() {
                     }`}>{c.status}</span>
                   </td>
                   <td className="px-4 py-3">
-                    {c.status !== 'paid' && (
-                      <button className="text-xs text-green-600 font-bold hover:underline whitespace-nowrap">Record →</button>
-                    )}
+                    <div className="flex gap-2">
+                      {c.status !== 'paid' && (
+                        <button className="text-xs text-green-600 font-bold hover:underline whitespace-nowrap">Record →</button>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditContribution(c); setEditForm({ amount: c.amount, status: c.status, type: c.type }); }}
+                        className="text-xs text-blue-600 font-bold hover:underline whitespace-nowrap"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete this ${c.type} contribution of KSh ${c.amount} by ${c.memberName}?`)) {
+                            deleteContribution(c.id).then(() => {
+                              toast.success('Contribution deleted', `KSh ${c.amount} contribution removed`);
+                            }).catch(() => toast.error('Delete failed', 'Could not delete contribution'));
+                          }
+                        }}
+                        className="text-xs text-red-600 font-bold hover:underline whitespace-nowrap"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -165,6 +192,73 @@ export default function Contributions() {
           <button className="text-xs text-green-600 font-bold hover:underline">Export to Excel →</button>
         </div>
       </div>
+
+      {/* Edit Contribution Modal */}
+      {editContribution && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-black text-gray-900 text-lg">Edit Contribution</h2>
+              <button onClick={() => setEditContribution(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Member</label>
+                <div className="text-sm text-gray-900 font-semibold px-4 py-2.5 bg-gray-50 rounded-xl">{editContribution.memberName}</div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Amount (KSh)</label>
+                <input
+                  type="number"
+                  value={editForm.amount}
+                  onChange={(e) => setEditForm({ ...editForm, amount: Number(e.target.value) })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Type</label>
+                <select
+                  value={editForm.type}
+                  onChange={(e) => setEditForm({ ...editForm, type: e.target.value as Contribution['type'] })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                >
+                  <option value="monthly">Monthly Contribution</option>
+                  <option value="shares">Shares</option>
+                  <option value="fine">Fine</option>
+                  <option value="special">Special Levy</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as Contribution['status'] })}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400"
+                >
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </div>
+              <button
+                onClick={async () => {
+                  if (editForm.amount <= 0) { toast.error('Validation', 'Amount must be greater than 0'); return; }
+                  try {
+                    await updateContribution(editContribution.id, { amount: editForm.amount, type: editForm.type, status: editForm.status });
+                    toast.success('Contribution updated', `KSh ${editForm.amount} ${editForm.type} contribution updated`);
+                    setEditContribution(null);
+                  } catch {
+                    toast.error('Update failed', 'Could not update contribution');
+                  }
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-2 transition-colors"
+              >
+                💾 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* M-Pesa Sync Modal */}
       {showMpesa && (

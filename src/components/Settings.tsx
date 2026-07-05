@@ -1,8 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useData } from '../data/context';
 import { supabase } from '../data/supabase';
 import { useAuth } from '../data/auth-context';
 import { DEFAULT_MONTHLY_CONTRIBUTION, DEFAULT_INTEREST_RATE } from '../data/constants';
+
+interface NotificationSettings {
+  contribution_reminders: boolean;
+  loan_repayment_reminders: boolean;
+  mpesa_payment_alerts: boolean;
+  meeting_notifications: boolean;
+  monthly_statement: boolean;
+  overdue_loan_escalations: boolean;
+  reminder_days_before: string;
+}
+
+const defaultNotificationSettings: NotificationSettings = {
+  contribution_reminders: true,
+  loan_repayment_reminders: true,
+  mpesa_payment_alerts: true,
+  meeting_notifications: true,
+  monthly_statement: false,
+  overdue_loan_escalations: true,
+  reminder_days_before: '7 days before',
+};
+
+const notificationItems: { key: keyof NotificationSettings; label: string; desc: string }[] = [
+  { key: 'contribution_reminders', label: 'Contribution Reminders', desc: 'SMS/WhatsApp reminders before contribution deadline' },
+  { key: 'loan_repayment_reminders', label: 'Loan Repayment Reminders', desc: 'Automated reminders for upcoming loan due dates' },
+  { key: 'mpesa_payment_alerts', label: 'M-Pesa Payment Alerts', desc: 'Instant notification when payment is received' },
+  { key: 'meeting_notifications', label: 'Meeting Notifications', desc: 'Agenda and reminder 48 hours before meeting' },
+  { key: 'monthly_statement', label: 'Monthly Statement', desc: 'Automated PDF statement at end of month' },
+  { key: 'overdue_loan_escalations', label: 'Overdue Loan Escalations', desc: 'Weekly escalation SMS for overdue loans' },
+];
 
 export default function Settings() {
   const { user } = useAuth();
@@ -12,6 +41,27 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  const [notifSettings, setNotifSettings] = useState<NotificationSettings>(defaultNotificationSettings);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifSaving, setNotifSaving] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id || activeTab !== 'notifications') return;
+    setNotifLoading(true);
+    (async () => {
+      const { data, error } = await supabase.from('user_settings').select('settings').eq('user_id', user.id).maybeSingle();
+      if (!error && data?.settings) {
+        setNotifSettings({ ...defaultNotificationSettings, ...data.settings as Partial<NotificationSettings> });
+      }
+      setNotifLoading(false);
+    })();
+  }, [user?.id, activeTab]);
 
   if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
 
@@ -39,6 +89,76 @@ export default function Settings() {
       console.error('Save error:', err);
     }
     setSaving(false);
+  };
+
+  const saveNotificationSettings = async (settings: NotificationSettings) => {
+    if (!user?.id) return;
+    setNotifSaving(true);
+    try {
+      const { error } = await supabase.from('user_settings').upsert({
+        user_id: user.id,
+        chama_id: chama?.id,
+        settings,
+      }, { onConflict: 'user_id' });
+      if (error) throw error;
+      setToast('Notification settings saved');
+      setTimeout(() => setToast(null), 2000);
+    } catch (err) {
+      console.error('Save notification error:', err);
+      setToast('Failed to save notification settings');
+      setTimeout(() => setToast(null), 3000);
+    }
+    setNotifSaving(false);
+  };
+
+  const toggleNotifSetting = (key: keyof NotificationSettings) => {
+    const updated = { ...notifSettings, [key]: !notifSettings[key] };
+    setNotifSettings(updated);
+    saveNotificationSettings(updated);
+  };
+
+  const handlePasswordChange = async () => {
+    if (!user?.email) return;
+    if (!currentPassword) {
+      setToast('Please enter your current password');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+    if (newPassword.length < 6) {
+      setToast('New password must be at least 6 characters');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setToast('New passwords do not match');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (signInError) {
+        setToast('Current password is incorrect');
+        setTimeout(() => setToast(null), 3000);
+        setPasswordSaving(false);
+        return;
+      }
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+      setToast('Password updated successfully');
+      setTimeout(() => setToast(null), 3000);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      console.error('Password change error:', err);
+      setToast('Failed to update password');
+      setTimeout(() => setToast(null), 3000);
+    }
+    setPasswordSaving(false);
   };
 
   const tabs = [
@@ -99,45 +219,49 @@ export default function Settings() {
       {activeTab === 'notifications' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
           <h2 className="font-bold text-gray-900 text-lg">Notification Preferences</h2>
-          <div className="space-y-4">
-            {[
-              { label: 'Contribution Reminders', desc: 'SMS/WhatsApp reminders before contribution deadline', default: true },
-              { label: 'Loan Repayment Reminders', desc: 'Automated reminders for upcoming loan due dates', default: true },
-              { label: 'M-Pesa Payment Alerts', desc: 'Instant notification when payment is received', default: true },
-              { label: 'Meeting Notifications', desc: 'Agenda and reminder 48 hours before meeting', default: true },
-              { label: 'Monthly Statement', desc: 'Automated PDF statement at end of month', default: false },
-              { label: 'Overdue Loan Escalations', desc: 'Weekly escalation SMS for overdue loans', default: true },
-            ].map(item => (
-              <div key={item.label} className="flex items-start justify-between p-4 bg-gray-50 rounded-xl">
-                <div>
-                  <div className="font-semibold text-gray-900 text-sm">{item.label}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{item.desc}</div>
-                </div>
-                <label className="relative cursor-pointer shrink-0 ml-4">
-                  <input type="checkbox" defaultChecked={item.default} className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-checked:bg-green-600 rounded-full transition-colors relative">
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+          {notifLoading ? (
+            <div className="text-center text-gray-500 py-4 text-sm">Loading preferences...</div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {notificationItems.map(item => (
+                  <div key={item.key} className="flex items-start justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                      <div className="font-semibold text-gray-900 text-sm">{item.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{item.desc}</div>
+                    </div>
+                    <label className="relative cursor-pointer shrink-0 ml-4">
+                      <input type="checkbox" checked={!!notifSettings[item.key]} onChange={() => toggleNotifSetting(item.key)} className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-200 peer-checked:bg-green-600 rounded-full transition-colors relative">
+                        <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+                      </div>
+                    </label>
                   </div>
-                </label>
+                ))}
               </div>
-            ))}
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1">Reminder Days Before Deadline</label>
-            <select className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-green-400">
-              <option>7 days before</option>
-              <option>5 days before</option>
-              <option>3 days before</option>
-              <option>1 day before</option>
-            </select>
-          </div>
-          <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
-            {saved ? '✓ Saved!' : 'Save Notification Settings'}
-          </button>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Reminder Days Before Deadline</label>
+                <select value={notifSettings.reminder_days_before} onChange={e => {
+                  const updated = { ...notifSettings, reminder_days_before: e.target.value };
+                  setNotifSettings(updated);
+                  saveNotificationSettings(updated);
+                }} className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-green-400">
+                  <option>7 days before</option>
+                  <option>5 days before</option>
+                  <option>3 days before</option>
+                  <option>1 day before</option>
+                </select>
+              </div>
+              <button onClick={() => saveNotificationSettings(notifSettings)} disabled={notifSaving}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                {notifSaving ? 'Saving...' : 'Save Notification Settings'}
+              </button>
+            </>
+          )}
         </div>
       )}
 
-        {/* M-Pesa Tab */}
+      {/* M-Pesa Tab */}
       {activeTab === 'payments' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
           <h2 className="font-bold text-gray-900 text-lg">M-Pesa Integration</h2>
@@ -182,17 +306,21 @@ export default function Settings() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-semibold text-gray-700 block mb-1">Current Password</label>
-              <input type="password" placeholder="••••••••" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400" />
+              <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••••" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400" />
             </div>
             <div>
               <label className="text-sm font-semibold text-gray-700 block mb-1">New Password</label>
-              <input type="password" placeholder="••••••••" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400" />
+              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400" />
             </div>
             <div>
               <label className="text-sm font-semibold text-gray-700 block mb-1">Confirm New Password</label>
-              <input type="password" placeholder="••••••••" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400" />
+              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-400" />
             </div>
           </div>
+          <button onClick={handlePasswordChange} disabled={passwordSaving}
+            className="px-6 py-2.5 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all disabled:opacity-50">
+            {passwordSaving ? 'Updating...' : 'Update Password'}
+          </button>
           <div className="space-y-3">
             {[
               { label: 'Two-Factor Authentication (2FA)', desc: 'Receive OTP via SMS before every login', checked: true },
@@ -242,9 +370,6 @@ export default function Settings() {
               )}
             </div>
           </div>
-          <button onClick={() => { setToast("Password changes are handled through Supabase auth - use the 'Forgot Password' flow on the login page."); setTimeout(() => setToast(null), 4000); }} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saved ? 'bg-green-500 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
-            {saved ? '✓ Saved!' : 'Save Security Settings'}
-          </button>
         </div>
       )}
       {toast && (

@@ -1,39 +1,31 @@
+import { useState, useEffect } from 'react';
 import { useAdmin } from '../../data/admin-context';
-import { useData } from '../../data/context';
+import { supabase } from '../../data/supabase';
 
 export default function AdminDashboard() {
   const { admin } = useAdmin();
-  const { chama, members, contributions, loans, meetings } = useData();
+  const [stats, setStats] = useState([
+    { label: 'Total Chamas', value: '—', icon: '🏛️', color: 'from-blue-500 to-blue-700' },
+    { label: 'Total Members', value: '—', icon: '👥', color: 'from-green-500 to-green-700' },
+    { label: 'Total Contributions', value: '—', icon: '💰', color: 'from-purple-500 to-purple-700' },
+    { label: 'Total Loans', value: '—', icon: '💳', color: 'from-orange-500 to-orange-700' },
+  ]);
 
-  const activeLoans = loans.filter(l => l.status === 'active');
-  const monthPaid = contributions
-    .filter(c => c.status === 'paid')
-    .reduce((s, c) => s + c.amount, 0);
-
-  const stats = [
-    { label: 'Total Fund', value: `KSh ${(monthPaid / 1000).toFixed(0)}K`, icon: '💰', color: 'from-purple-500 to-purple-700' },
-    { label: 'Members', value: members.length.toString(), icon: '👥', color: 'from-green-500 to-green-700' },
-    { label: 'Active Loans', value: activeLoans.length.toString(), icon: '💳', color: 'from-orange-500 to-orange-700' },
-    { label: 'Chama', value: chama?.name?.split(' ')[0] || '1', icon: '🏛️', color: 'from-blue-500 to-blue-700' },
-  ];
-
-  const recentActivity = [
-    ...contributions.slice(0, 3).map(c => ({
-      action: 'Contribution recorded',
-      user: c.memberName,
-      time: c.date,
-    })),
-    ...loans.slice(0, 2).map(l => ({
-      action: `Loan ${l.status}`,
-      user: l.memberName,
-      time: l.disbursedDate,
-    })),
-    ...meetings.slice(0, 1).map(m => ({
-      action: `Meeting ${m.status}`,
-      user: m.title,
-      time: m.date,
-    })),
-  ].slice(0, 4);
+  useEffect(() => {
+    Promise.all([
+      supabase.from('chamas').select('*', { count: 'exact', head: true }),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('contributions').select('*', { count: 'exact', head: true }),
+      supabase.from('loans').select('*', { count: 'exact', head: true }),
+    ]).then(([chamas, profiles, contributions, loans]) => {
+      setStats([
+        { label: 'Total Chamas', value: String(chamas.count ?? 0), icon: '🏛️', color: 'from-blue-500 to-blue-700' },
+        { label: 'Total Members', value: String(profiles.count ?? 0), icon: '👥', color: 'from-green-500 to-green-700' },
+        { label: 'Total Contributions', value: String(contributions.count ?? 0), icon: '💰', color: 'from-purple-500 to-purple-700' },
+        { label: 'Total Loans', value: String(loans.count ?? 0), icon: '💳', color: 'from-orange-500 to-orange-700' },
+      ]);
+    });
+  }, []);
 
   const roleColors: Record<string, string> = {
     super_admin: 'bg-purple-100 text-purple-700',
@@ -96,24 +88,8 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Activity</h2>
-          <div className="space-y-3">
-            {recentActivity.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">No recent activity</p>
-            ) : (
-              recentActivity.map((item, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm">
-                    {item.user[0]}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{item.action}</p>
-                    <p className="text-xs text-gray-500">{item.user} · {item.time}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">System-wide Overview</h2>
+          <p className="text-gray-500 text-sm">Admin dashboard shows aggregate data across all chamas. Use specific chama dashboards for per-chama details.</p>
         </div>
       </div>
 

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../../data/auth-context';
+import { supabase } from '../../data/supabase';
+import { useToast } from '../../data/toast-context';
 
 export default function UserManagement() {
   const { user } = useAuth();
+  const { success, error: showError } = useToast();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -13,31 +15,20 @@ export default function UserManagement() {
     if (!inviteEmail) return;
 
     setInviteStatus('sending');
-    setErrorMessage('');
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-member`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            email: inviteEmail,
-            chamaId: user?.chamaId,
-            memberId: `m${Date.now()}`,
-          }),
+      const { error } = await supabase.functions.invoke('invite-member', {
+        body: {
+          email: inviteEmail,
+          chamaId: user?.chamaId,
+          memberId: `m${Date.now()}`,
         },
-      );
+      });
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to send invite');
-      }
+      if (error) throw new Error(error.message || 'Failed to send invite');
 
       setInviteStatus('sent');
+      success('Invite sent', `Invitation email sent to ${inviteEmail}`);
       setTimeout(() => {
         setShowInviteModal(false);
         setInviteStatus('idle');
@@ -45,7 +36,7 @@ export default function UserManagement() {
       }, 2000);
     } catch (err: any) {
       setInviteStatus('error');
-      setErrorMessage(err.message || 'Failed to send invite');
+      showError('Invite failed', err.message || 'Failed to send invite');
     }
   };
 
@@ -103,7 +94,7 @@ export default function UserManagement() {
                   />
                 </div>
                 {inviteStatus === 'error' && (
-                  <p className="text-sm text-red-600">{errorMessage}</p>
+                  <p className="text-sm text-red-600">Failed to send invite. Please try again.</p>
                 )}
                 {inviteStatus === 'sending' && (
                   <p className="text-sm text-gray-500">Sending invite...</p>

@@ -12,11 +12,15 @@ interface LogEntry {
   details: string;
 }
 
+const PAGE_SIZE = 50;
+
 export default function AdminTools() {
   const [filterLevel, setFilterLevel] = useState<LogLevel>('all');
   const [activeTab, setActiveTab] = useState<'logs' | 'backup' | 'cache'>('logs');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditTotal, setAuditTotal] = useState(0);
   const { user } = useAuth();
   const chamaId = user?.chamaId;
 
@@ -25,16 +29,20 @@ export default function AdminTools() {
       setLoading(false);
       return;
     }
+    const from = auditPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
     supabase
       .from('audit_logs')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('chama_id', chamaId)
+      .range(from, to)
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, count }) => {
         setLogs((data as LogEntry[]) || []);
+        setAuditTotal(count ?? 0);
         setLoading(false);
       });
-  }, [chamaId]);
+  }, [chamaId, auditPage]);
 
   const filteredLogs = filterLevel === 'all'
     ? logs
@@ -110,6 +118,29 @@ export default function AdminTools() {
               ))
             )}
           </div>
+          {auditTotal > PAGE_SIZE && (
+            <div className="p-4 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-sm text-gray-500">
+                Page {auditPage + 1} of {Math.ceil(auditTotal / PAGE_SIZE)}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAuditPage(p => Math.max(0, p - 1))}
+                  disabled={auditPage === 0}
+                  className="px-4 py-2 rounded-xl bg-gray-100 text-gray-600 text-sm font-medium disabled:opacity-40 hover:bg-gray-200"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setAuditPage(p => p + 1)}
+                  disabled={(auditPage + 1) * PAGE_SIZE >= auditTotal}
+                  className="px-4 py-2 rounded-xl bg-gray-100 text-gray-600 text-sm font-medium disabled:opacity-40 hover:bg-gray-200"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -10,3 +10,10 @@ export const PLAN_PRICES = {
   enterprise: 9999,
 } as const;
 export const DEFAULT_MEETING_TIME = '10:00';
+
+export const PLAN_LIMITS: Record<string, { members: number; contributions: boolean; loans: boolean; analytics: boolean }> = {
+  free: { members: 10, contributions: true, loans: false, analytics: false },
+  starter: { members: 30, contributions: true, loans: true, analytics: true },
+  pro: { members: 100, contributions: true, loans: true, analytics: true },
+  enterprise: { members: 500, contributions: true, loans: true, analytics: true },
+};

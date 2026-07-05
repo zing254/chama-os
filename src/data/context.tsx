@@ -16,6 +16,13 @@ interface DataContextType {
   addContribution: (data: { memberId: string; amount: number; type: Contribution['type']; status: Contribution['status']; date: string; memberName: string; mpesaRef?: string }) => Promise<Contribution>;
   addLoan: (data: { memberId: string; amount: number; interest: number; purpose: string; memberName: string }) => Promise<Loan>;
   addMeeting: (data: { title: string; date: string; time: string; venue: string; agenda: string[] }) => Promise<Meeting>;
+  updateMember: (id: string, data: Partial<Member>) => Promise<void>;
+  deleteMember: (id: string) => Promise<void>;
+  updateContribution: (id: string, data: Partial<Contribution>) => Promise<void>;
+  deleteContribution: (id: string) => Promise<void>;
+  updateLoan: (id: string, data: Partial<Loan>) => Promise<void>;
+  deleteLoan: (id: string) => Promise<void>;
+  addRepayment: (data: { loan_id: string; amount: number; date: string; mpesa_ref?: string }) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -246,6 +253,105 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return newMember;
   };
 
+  const updateMemberFn = async (id: string, data: Partial<Member>) => {
+    if (!chamaId) return;
+    setMembers(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
+    const dbData: Record<string, unknown> = {};
+    if (data.name !== undefined) dbData.name = data.name;
+    if (data.phone !== undefined) dbData.phone = data.phone;
+    if (data.email !== undefined) dbData.email = data.email;
+    if (data.role !== undefined) dbData.role = data.role;
+    if (data.status !== undefined) dbData.status = data.status;
+    const { error } = await supabase.from('members').update(dbData).eq('id', id).eq('chama_id', chamaId);
+    if (error) {
+      refresh();
+      throw error;
+    }
+    try { await addAuditLog('member.updated', `Updated member ${data.name || id}`); } catch {}
+  };
+
+  const deleteMemberFn = async (id: string) => {
+    if (!chamaId) return;
+    setMembers(prev => prev.filter(m => m.id !== id));
+    const { error } = await supabase.from('members').delete().eq('id', id).eq('chama_id', chamaId);
+    if (error) {
+      refresh();
+      throw error;
+    }
+    try { await addAuditLog('member.deleted', `Deleted member ${id}`); } catch {}
+  };
+
+  const updateContributionFn = async (id: string, data: Partial<Contribution>) => {
+    if (!chamaId) return;
+    setContributions(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
+    const { error } = await supabase.from('contributions').update(data).eq('id', id).eq('chama_id', chamaId);
+    if (error) {
+      refresh();
+      throw error;
+    }
+    try { await addAuditLog('contribution.updated', `Updated contribution ${id}`); } catch {}
+  };
+
+  const deleteContributionFn = async (id: string) => {
+    if (!chamaId) return;
+    setContributions(prev => prev.filter(c => c.id !== id));
+    const { error } = await supabase.from('contributions').delete().eq('id', id).eq('chama_id', chamaId);
+    if (error) {
+      refresh();
+      throw error;
+    }
+    try { await addAuditLog('contribution.deleted', `Deleted contribution ${id}`); } catch {}
+  };
+
+  const updateLoanFn = async (id: string, data: Partial<Loan>) => {
+    if (!chamaId) return;
+    setLoans(prev => prev.map(l => l.id === id ? { ...l, ...data } : l));
+    const { error } = await supabase.from('loans').update(data).eq('id', id).eq('chama_id', chamaId);
+    if (error) {
+      refresh();
+      throw error;
+    }
+    try { await addAuditLog('loan.updated', `Updated loan ${id}`); } catch {}
+  };
+
+  const addRepaymentFn = async (data: { loan_id: string; amount: number; date: string; mpesa_ref?: string }) => {
+    if (!chamaId) return;
+    const id = `r${Date.now()}`;
+    const { error } = await supabase.from('loan_repayments').insert({
+      id,
+      chama_id: chamaId,
+      loan_id: data.loan_id,
+      amount: data.amount,
+      date: data.date,
+      mpesa_ref: data.mpesa_ref || '',
+    });
+    if (error) throw error;
+
+    const loan = loans.find(l => l.id === data.loan_id);
+    if (loan) {
+      const newBalance = (loan.balance || loan.amount) - data.amount;
+      await updateLoanFn(data.loan_id, {
+        balance: Math.max(0, newBalance),
+        status: newBalance <= 0 ? 'paid' : loan.status,
+      });
+    }
+
+    try { await addAuditLog('repayment.added', `Recorded repayment of KSh ${data.amount} for loan ${data.loan_id}`); } catch {}
+
+    await refresh();
+  };
+
+  const deleteLoanFn = async (id: string) => {
+    if (!chamaId) return;
+    setLoans(prev => prev.filter(l => l.id !== id));
+    const { error } = await supabase.from('loans').delete().eq('id', id).eq('chama_id', chamaId);
+    if (error) {
+      refresh();
+      throw error;
+    }
+    try { await addAuditLog('loan.deleted', `Deleted loan ${id}`); } catch {}
+  };
+
   const addContributionFn = async (input: { memberId: string; amount: number; type: Contribution['type']; status: Contribution['status']; date: string; memberName: string; mpesaRef?: string }) => {
     const month = new Date().toLocaleString('en-KE', { month: 'long', year: 'numeric' });
     const id = crypto.randomUUID();
@@ -373,6 +479,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         addContribution: addContributionFn,
         addLoan: addLoanFn,
         addMeeting: addMeetingFn,
+        updateMember: updateMemberFn,
+        deleteMember: deleteMemberFn,
+        updateContribution: updateContributionFn,
+        deleteContribution: deleteContributionFn,
+        updateLoan: updateLoanFn,
+        deleteLoan: deleteLoanFn,
+        addRepayment: addRepaymentFn,
       }}
     >
       {children}
