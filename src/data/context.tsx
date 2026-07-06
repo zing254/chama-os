@@ -82,6 +82,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         totalMembers: data.total_members || 0,
         totalLoansOut: data.total_loans_out || 0,
         plan: data.plan || 'free',
+        mpesaNumber: data.mpesa_number || '0797132940',
       });
     }
   }, []);

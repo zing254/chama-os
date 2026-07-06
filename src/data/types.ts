@@ -64,6 +64,7 @@ export type Chama = {
   totalMembers: number;
   totalLoansOut: number;
   plan: string;
+  mpesaNumber?: string;
 };
 
 import { PLAN_PRICES } from '../data/constants';

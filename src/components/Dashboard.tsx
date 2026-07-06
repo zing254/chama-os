@@ -367,6 +367,18 @@ export default function Dashboard() {
               >
                 Save Payment
               </button>
+              <button
+                onClick={() => {
+                  const member = members.find(m => m.id === newContribution.memberId);
+                  if (!member) { toast.error('Select member first'); return; }
+                  const mpesaNum = chama?.mpesaNumber || '0797132940';
+                  sendSMS(member.phone, `ChamaOS: ${member.name}, pay KSh ${newContribution.amount} to ${mpesaNum} for ${newContribution.type}. Ref: ${newContribution.mpesaRef || 'AUTO'}. Reply with M-Pesa code.`);
+                  toast.success('M-Pesa request sent', `SMS sent to ${member.name}`);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl mt-1 transition-colors"
+              >
+                📱 Request M-Pesa Payment
+              </button>
             </div>
           </div>
         </div>

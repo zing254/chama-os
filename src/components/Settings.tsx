@@ -53,6 +53,8 @@ export default function Settings() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [auditorEnabled, setAuditorEnabled] = useState(true);
   const [riskThreshold, setRiskThreshold] = useState(50);
+  const [mpesaNumber, setMpesaNumber] = useState(chama?.mpesaNumber || '0797132940');
+  const [mpesaAccountName, setMpesaAccountName] = useState('ChamaOS');
 
   useEffect(() => {
     if (!user?.id || activeTab !== 'notifications') return;
@@ -273,34 +275,29 @@ export default function Settings() {
             <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white text-lg font-black">M</div>
             <div>
               <div className="font-bold text-green-900">Manual M-Pesa Collection</div>
-              <div className="text-sm text-green-700">Send to 0797 132 940</div>
+              <div className="text-sm text-green-700">Send to {mpesaNumber.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3')}</div>
             </div>
             <span className="ml-auto text-xs font-bold bg-green-600 text-white px-2.5 py-1 rounded-full">ACTIVE</span>
           </div>
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
-            <strong>How it works:</strong> Members send contributions to 0797 132 940 via M-Pesa. The admin then records the payment in the app using the M-Pesa confirmation code from the member's SMS. No M-Pesa API keys required.
+            <strong>How it works:</strong> Members send contributions to {mpesaNumber.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3')} via M-Pesa. The admin then records the payment in the app using the M-Pesa confirmation code from the member's SMS.
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              ['M-Pesa Number', '0797 132 940'],
-              ['Account Name', 'ChamaOS'],
-              ['Consumer Key', 'Not configured'],
-              ['Consumer Secret', 'Not configured'],
-              ['Passkey', 'Not configured'],
-            ].map(([label, val]) => (
-              <div key={label as string}>
-                <label className="text-sm font-semibold text-gray-700 block mb-1">{label}</label>
-                <input type="text" defaultValue={val as string} readOnly={val === '0797 132 940'}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-400 font-mono" />
-              </div>
-            ))}
+            <div>
+              <label className="text-sm font-semibold text-gray-700 block mb-1">M-Pesa Number</label>
+              <input type="text" value={mpesaNumber} onChange={e => setMpesaNumber(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-400 font-mono" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-700 block mb-1">Account/Business Name</label>
+              <input type="text" value={mpesaAccountName} onChange={e => setMpesaAccountName(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-400" />
+            </div>
           </div>
           <div className="flex gap-3">
             <button onClick={async () => {
-              const mpesaInput = document.querySelector<HTMLInputElement>('input[value="0797 132 940"]');
-              const num = mpesaInput?.value || '0797 132 940';
               try {
-                await updateChama({ mpesa_number: num });
+                await updateChama({ mpesa_number: mpesaNumber.replace(/\s/g, '') });
                 setToast('M-Pesa settings saved');
               } catch { setToast('Failed to save'); }
               setTimeout(() => setToast(null), 3000);
