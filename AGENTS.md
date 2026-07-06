@@ -10,10 +10,9 @@
 | Command | Notes |
 |---|---|
 | `npm run dev` | Vite dev server |
-| `npm run build` | Produces **single** `dist/index.html` (~1.1MB, all JS/CSS inlined via `vite-plugin-singlefile`) |
-| `npm test` | Vitest (jsdom), 41 tests across 10 files |
+| `npm run build` | Produces **single** `dist/index.html` (~1.2MB, all JS/CSS inlined via `vite-plugin-singlefile`) |
+| `npm test` | Vitest (jsdom), 44 tests across 11 files |
 | `npm run typecheck` | `tsc --noEmit` — should be 0 errors |
-| `npm run lint` | ESLint (unused imports rule) |
 | `npx vercel --prod --yes` | Deploy frontend |
 | `npx vercel alias set <url> chama-os.vercel.app` | **Required after every deploy** — Vercel changes URL each time |
 
@@ -21,7 +20,7 @@
 
 - **Supabase secrets + edge functions:** Setting a secret does NOT update the running function. Always run `supabase functions deploy <name> --no-verify-jwt` afterward, or the old code still runs with the old secrets.
 - **Vercel alias:** After `vercel --prod --yes`, the URL changes. Must re-run `npx vercel alias set <new-url> chama-os.vercel.app` or the prod alias breaks.
-- **Migration SQL:** `supabase/migration-multi-tenant.sql` line 188 has `founded ~ '^\d{4}$'` which fails if the `founded` column is already `DATE` type. Run only `CREATE TABLE IF NOT EXISTS` sections — never the full file on an existing DB.
+- **Migration SQL:** `supabase/migration-multi-tenant.sql` line 188 has `founded ~ '^\d{4}$'` which fails if `founded` is already `DATE` type. Run only `CREATE TABLE IF NOT EXISTS` sections — never the full file on an existing DB.
 - **AdminLogin race:** `src/components/admin/AdminLogin.tsx` calls `signIn()` then checks `supabase.auth.getUser()` + profiles query to verify admin role. Do not simplify — the role check must happen post-login.
 - **Testing:** `Login.test.tsx` mocks `auth-context` and `react-router-dom`. Must wrap in `<BrowserRouter>` and mock `AuthProvider`. Other test files follow similar patterns.
 - **Supabase auto-pause:** Free tier pauses after 7 days inactivity. Unpause in dashboard. Edge functions return 404 "INACTIVE" while paused.
@@ -37,9 +36,10 @@
 - **i18n:** `src/data/i18n.ts` — EN + SW (163 keys each, tested for completeness)
 - **Constants:** `src/data/constants.ts` — `DEFAULT_MONTHLY_CONTRIBUTION`, `MPESA_NUMBER`, `PLAN_PRICES`, `PLAN_LIMITS`
 - **`@/`** aliases to `src/` (vite.config.ts + tsconfig.json)
-- **`cn()`** from `src/utils/cn.ts` (clsx + tailwind-merge) — use this, never `./cn`
+- **`cn()`** from `src/utils/cn.ts` (clsx + tailwind-merge) — use this, never join class strings manually
+- **Images in `public/images/`** are served as-is (not inlined in singlefile build)
 
-## Edge Functions (6 total)
+## Edge Functions (8 total)
 
 Deploy command: `supabase functions deploy <name> --no-verify-jwt`
 
@@ -52,7 +52,7 @@ Deploy command: `supabase functions deploy <name> --no-verify-jwt`
 | `send-push` | VAPID-signed encrypted push notifications | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` |
 | `mpesa-stkpush` | STK Push to member phones (future) | M-Pesa Daraja credentials |
 | `whatsapp-webhook` | Inbound WhatsApp handler (M-Pesa, voice, commands) | `VITE_GEMINI_API_KEY`, `AT_USERNAME`, `AT_API_KEY`, `AT_SHORTCODE` |
-| `ai-auditor` | Weekly Sunday audit summary sent via WhatsApp | `VITE_GEMINI_API_KEY`, `AT_USERNAME`, `AT_API_KEY`, `CRON_SECRET` |
+| `ai-auditor` | Weekly Sunday audit summary via WhatsApp | `VITE_GEMINI_API_KEY`, `AT_USERNAME`, `AT_API_KEY`, `CRON_SECRET` |
 
 ## Cron (pg_cron)
 
