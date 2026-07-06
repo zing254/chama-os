@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../data/auth-context';
 import { useData } from '../../data/context';
 import MemberDashboard from './MemberDashboard';
+import LanguageSwitcher from '../LanguageSwitcher';
 
 type MemberPage = 'dashboard' | 'contributions' | 'loans' | 'meetings' | 'settings';
 
@@ -243,6 +244,7 @@ export default function MemberLayout() {
             <span className="font-bold text-gray-900 text-sm">{pageTitles[page]}</span>
           </div>
           <div className="flex items-center gap-3">
+            <LanguageSwitcher variant="icon" />
             <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-black">
               {user?.email?.slice(0, 2).toUpperCase() || 'M'}
             </div>

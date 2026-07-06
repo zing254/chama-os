@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../data/supabase';
 import { useAuth } from '../../data/auth-context';
+import { useToast } from '../../data/toast-context';
 
 type LogLevel = 'all' | 'info' | 'warning' | 'error';
 
@@ -21,6 +22,7 @@ export default function AdminTools() {
   const [loading, setLoading] = useState(true);
   const [auditPage, setAuditPage] = useState(0);
   const [auditTotal, setAuditTotal] = useState(0);
+  const toast = useToast();
   const { user } = useAuth();
   const chamaId = user?.chamaId;
 
@@ -95,7 +97,19 @@ export default function AdminTools() {
               <option value="warning">Warning</option>
               <option value="error">Error</option>
             </select>
-            <button className="text-sm text-green-600 hover:underline">Export Logs</button>
+            <button
+              onClick={() => {
+                const csv = ['Level,Action,Details,Date', ...filteredLogs.map(l => `"${l.level}","${l.action.replace(/"/g, '""')}","${l.details.replace(/"/g, '""')}","${l.created_at}"`)].join('\n');
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+                URL.revokeObjectURL(url);
+                toast.success('Logs exported');
+              }}
+              className="text-sm text-green-600 hover:underline"
+            >
+              Export Logs
+            </button>
           </div>
 
           <div className="divide-y divide-gray-100">
@@ -163,7 +177,17 @@ export default function AdminTools() {
                 <p className="text-sm text-gray-500">2.4 MB</p>
               </div>
             </div>
-            <button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl">
+            <button
+              onClick={() => {
+                const backup = { timestamp: new Date().toISOString(), chamaId, auditLogs: logs };
+                const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+                URL.revokeObjectURL(url);
+                toast.success('Backup downloaded successfully');
+              }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl"
+            >
               Create New Backup
             </button>
           </div>
@@ -179,7 +203,10 @@ export default function AdminTools() {
                 <p className="font-medium text-gray-900">Local Storage</p>
                 <p className="text-sm text-gray-500">Clear cached data in browser</p>
               </div>
-              <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">
+              <button
+                onClick={() => { localStorage.clear(); toast.success('Local storage cleared'); }}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm"
+              >
                 Clear
               </button>
             </div>
@@ -188,11 +215,17 @@ export default function AdminTools() {
                 <p className="font-medium text-gray-900">Session Storage</p>
                 <p className="text-sm text-gray-500">Clear session data</p>
               </div>
-              <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">
+              <button
+                onClick={() => { sessionStorage.clear(); toast.success('Session storage cleared'); }}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm"
+              >
                 Clear
               </button>
             </div>
-            <button className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl">
+            <button
+              onClick={() => { localStorage.clear(); sessionStorage.clear(); toast.success('All cache cleared'); }}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl"
+            >
               Clear All Cache
             </button>
           </div>

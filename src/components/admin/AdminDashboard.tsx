@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '../../data/admin-context';
 import { supabase } from '../../data/supabase';
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const { admin } = useAdmin();
   const [stats, setStats] = useState([
     { label: 'Total Chamas', value: '—', icon: '🏛️', color: 'from-blue-500 to-blue-700' },
@@ -68,19 +70,19 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 gap-3">
-            <button className="p-4 bg-green-50 hover:bg-green-100 rounded-xl text-left transition-colors">
+            <button onClick={() => navigate('/members')} className="p-4 bg-green-50 hover:bg-green-100 rounded-xl text-left transition-colors">
               <span className="text-2xl">👤</span>
               <p className="text-sm font-semibold text-green-700 mt-1">Add Member</p>
             </button>
-            <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-xl text-left transition-colors">
+            <button onClick={() => navigate('/loans')} className="p-4 bg-blue-50 hover:bg-blue-100 rounded-xl text-left transition-colors">
               <span className="text-2xl">💳</span>
               <p className="text-sm font-semibold text-blue-700 mt-1">Approve Loan</p>
             </button>
-            <button className="p-4 bg-purple-50 hover:bg-purple-100 rounded-xl text-left transition-colors">
+            <button onClick={() => navigate('/admin/tools')} className="p-4 bg-purple-50 hover:bg-purple-100 rounded-xl text-left transition-colors">
               <span className="text-2xl">📊</span>
               <p className="text-sm font-semibold text-purple-700 mt-1">View Reports</p>
             </button>
-            <button className="p-4 bg-orange-50 hover:bg-orange-100 rounded-xl text-left transition-colors">
+            <button onClick={() => navigate('/admin/tools')} className="p-4 bg-orange-50 hover:bg-orange-100 rounded-xl text-left transition-colors">
               <span className="text-2xl">🔧</span>
               <p className="text-sm font-semibold text-orange-700 mt-1">System Tools</p>
             </button>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useData } from '../data/context';
 import { useAuth } from '../data/auth-context';
@@ -12,6 +13,7 @@ function formatKsh(n: number) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { chama, members, contributions, loans, meetings, loading, addContribution } = useData();
   const toast = useToast();
@@ -203,7 +205,7 @@ export default function Dashboard() {
             <div className="text-blue-200 text-sm mt-1">{upcomingMeeting?.date || ''}</div>
             <div className="text-blue-200 text-sm">{upcomingMeeting?.venue || ''}</div>
             <div className="mt-4 flex gap-2">
-              <button className="bg-white text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+              <button onClick={() => navigate('/meetings')} className="bg-white text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 View Agenda
               </button>
               <button onClick={() => members.forEach(m => sendWhatsApp(m.phone, `📅 *Meeting Reminder*\n\n${upcomingMeeting?.title}\n${upcomingMeeting?.date} at ${upcomingMeeting?.time}\n📍 ${upcomingMeeting?.venue}`))} className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
@@ -236,9 +238,9 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-2">
               {[
                 { icon: '💳', label: 'Record M-Pesa', cls: 'bg-green-600 text-white', onClick: () => setShowRecord(true) },
-                { icon: '📝', label: 'New Loan', cls: 'bg-blue-600 text-white', onClick: () => {} },
+                { icon: '📝', label: 'New Loan', cls: 'bg-blue-600 text-white', onClick: () => navigate('/loans') },
                 { icon: '📨', label: 'Send Reminder', cls: 'bg-orange-500 text-white', onClick: () => members.forEach(m => sendSMS(m.phone, `Dear ${m.name}, this is a reminder about your upcoming chama contribution. Please ensure timely payment.`)) },
-                { icon: '📄', label: 'Generate Report', cls: 'bg-purple-600 text-white', onClick: () => {} },
+                { icon: '📄', label: 'Generate Report', cls: 'bg-purple-600 text-white', onClick: () => navigate('/meetings') },
               ].map(({ icon, label, cls, onClick }) => (
                 <button key={label} onClick={onClick} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 ${cls}`}>
                   <span>{icon}</span><span>{label}</span>

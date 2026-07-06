@@ -3,6 +3,7 @@ import { Loan } from '../data/types';
 import { useData } from '../data/context';
 import { useToast } from '../data/toast-context';
 import { DEFAULT_INTEREST_RATE } from '../data/constants';
+import { sendSMS } from '../data/notifications-helper';
 import LoanRiskBadge from './features/LoanRiskBadge';
 
 export default function Loans() {
@@ -70,7 +71,7 @@ export default function Loans() {
             <div className="text-sm text-red-700 mt-0.5">
               {loans.filter(l => l.status === 'overdue').map(l => l.memberName).join(', ')} — immediate follow-up required.
             </div>
-            <button className="text-red-600 font-bold text-xs mt-2 hover:underline">Send Reminder SMS →</button>
+            <button onClick={() => loans.filter(l => l.status === 'overdue').forEach(l => { const m = members.find(me => me.id === l.memberId); if (m) sendSMS(m.phone, `Dear ${m.name}, your loan of KSh ${l.amount.toLocaleString()} is overdue. Please clear balance of KSh ${l.balance.toLocaleString()} to avoid penalties.`); })} className="text-red-600 font-bold text-xs mt-2 hover:underline">Send Reminder SMS →</button>
           </div>
         </div>
       )}
@@ -233,7 +234,7 @@ export default function Loans() {
                 >
                   + Record Repayment
                 </button>
-                <button className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
+                <button onClick={() => { const m = members.find(me => me.id === selectedLoan.memberId); if (m) sendSMS(m.phone, `Dear ${m.name}, this is a reminder about your loan of KSh ${selectedLoan.amount.toLocaleString()}. Current balance: KSh ${selectedLoan.balance.toLocaleString()}. Due date: ${selectedLoan.dueDate || 'N/A'}.`); }} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
                   📱 Send Reminder
                 </button>
               </div>

@@ -1,7 +1,9 @@
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../../data/context';
 import { useAuth } from '../../data/auth-context';
 
 export default function MemberDashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { members, contributions, loans, meetings } = useData();
   const memberId = user?.memberId;
@@ -158,12 +160,12 @@ export default function MemberDashboard() {
             <h3 className="font-bold text-gray-800 text-sm mb-3">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                ['💳', 'Make Payment', 'bg-green-600 text-white'],
-                ['📝', 'Apply Loan', 'bg-blue-600 text-white'],
-                ['📅', 'View Meetings', 'bg-purple-600 text-white'],
-                ['📄', 'My Statement', 'bg-orange-500 text-white'],
-              ].map(([icon, label, cls]) => (
-                <button key={label as string} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 ${cls}`}>
+                { icon: '💳', label: 'Make Payment', cls: 'bg-green-600 text-white', onClick: () => navigate('/meetings') },
+                { icon: '📝', label: 'Apply Loan', cls: 'bg-blue-600 text-white', onClick: () => navigate('/loans') },
+                { icon: '📅', label: 'View Meetings', cls: 'bg-purple-600 text-white', onClick: () => navigate('/meetings') },
+                { icon: '📄', label: 'My Statement', cls: 'bg-orange-500 text-white', onClick: () => navigate('/loans?tab=contributions') },
+              ].map(({ icon, label, cls, onClick }) => (
+                <button key={label} onClick={onClick} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 ${cls}`}>
                   <span>{icon}</span><span>{label}</span>
                 </button>
               ))}

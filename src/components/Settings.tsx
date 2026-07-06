@@ -35,7 +35,7 @@ const notificationItems: { key: keyof NotificationSettings; label: string; desc:
 
 export default function Settings() {
   const { user } = useAuth();
-  const { chama, refresh, loading } = useData();
+  const { chama, members, contributions, loans, meetings, refresh, loading, updateChama, deleteChama } = useData();
   const [activeTab, setActiveTab] = useState('chama');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -295,7 +295,15 @@ export default function Settings() {
             ))}
           </div>
           <div className="flex gap-3">
-            <button onClick={() => { setToast('Manual collection confirmed. No credentials needed.'); setTimeout(() => setToast(null), 3000); }} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all">
+            <button onClick={async () => {
+              const mpesaInput = document.querySelector<HTMLInputElement>('input[value="0797 132 940"]');
+              const num = mpesaInput?.value || '0797 132 940';
+              try {
+                await updateChama({ mpesa_number: num });
+                setToast('M-Pesa settings saved');
+              } catch { setToast('Failed to save'); }
+              setTimeout(() => setToast(null), 3000);
+            }} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all">
               Save M-Pesa Settings
             </button>
           </div>
@@ -352,7 +360,18 @@ export default function Settings() {
               {confirming === 'export' ? (
                 <div className="flex items-center gap-2 bg-red-100 rounded-lg px-3 py-1.5">
                   <span className="text-xs text-red-800">Are you sure? This will export all chama data.</span>
-                  <button onClick={() => { console.log('Export confirmed'); setConfirming(null); }} className="text-xs font-bold text-white bg-red-600 px-2 py-1 rounded hover:bg-red-700">Confirm</button>
+                  <button onClick={async () => {
+                    setConfirming(null);
+                    try {
+                      const exportData = { chama, members, contributions, loans, meetings, exportedAt: new Date().toISOString() };
+                      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a'); a.href = url; a.download = `chama-export-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+                      URL.revokeObjectURL(url);
+                      setToast('Export downloaded');
+                    } catch { setToast('Export failed'); }
+                    setTimeout(() => setToast(null), 3000);
+                  }} className="text-xs font-bold text-white bg-red-600 px-2 py-1 rounded hover:bg-red-700">Confirm</button>
                   <button onClick={() => setConfirming(null)} className="text-xs font-bold text-red-600 border border-red-200 px-2 py-1 rounded hover:bg-red-50">Cancel</button>
                 </div>
               ) : (
@@ -363,7 +382,15 @@ export default function Settings() {
               {confirming === 'delete' ? (
                 <div className="flex items-center gap-2 bg-red-100 rounded-lg px-3 py-1.5">
                   <span className="text-xs text-red-800">Are you sure? This will permanently delete all chama data.</span>
-                  <button onClick={() => { console.log('Delete confirmed'); setConfirming(null); }} className="text-xs font-bold text-white bg-red-600 px-2 py-1 rounded hover:bg-red-700">Confirm</button>
+                  <button onClick={async () => {
+                    setConfirming(null);
+                    try {
+                      await deleteChama();
+                    } catch {
+                      setToast('Delete failed');
+                      setTimeout(() => setToast(null), 3000);
+                    }
+                  }} className="text-xs font-bold text-white bg-red-600 px-2 py-1 rounded hover:bg-red-700">Confirm</button>
                   <button onClick={() => setConfirming(null)} className="text-xs font-bold text-red-600 border border-red-200 px-2 py-1 rounded hover:bg-red-50">Cancel</button>
                 </div>
               ) : (

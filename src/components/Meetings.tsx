@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { Meeting } from '../data/types';
 import { useData } from '../data/context';
+import { useToast } from '../data/toast-context';
 import { DEFAULT_MEETING_TIME } from '../data/constants';
 import { sendSMS, sendWhatsApp } from '../data/notifications-helper';
 
 export default function Meetings() {
-  const { meetings, members, loading, addMeeting } = useData();
+  const { meetings, members, loading, addMeeting, updateMeeting } = useData();
+  const toast = useToast();
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [attendanceMeeting, setAttendanceMeeting] = useState<Meeting | null>(null);
+  const [attendingIds, setAttendingIds] = useState<string[]>([]);
   
   const [newMeeting, setNewMeeting] = useState({
     title: '',
@@ -76,7 +80,7 @@ export default function Meetings() {
                 <button onClick={e => { e.stopPropagation(); members.forEach(member => sendWhatsApp(member.phone, `📅 *Meeting Reminder*\n\n${m.title}\nDate: ${new Date(m.date).toLocaleDateString('en-KE')}\nTime: ${m.time}\nVenue: ${m.venue}`)); }} className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
                   📱 WhatsApp Reminder
                 </button>
-                <button onClick={e => { e.stopPropagation(); }} className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
+                <button onClick={e => { e.stopPropagation(); setAttendanceMeeting(m); setAttendingIds(m.attendees); }} className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
                   ✅ Take Attendance
                 </button>
               </div>
@@ -181,7 +185,7 @@ export default function Meetings() {
                 <button onClick={() => members.forEach(m => sendWhatsApp(m.phone, `📋 *Meeting Details*\n\n${selectedMeeting.title}\nDate: ${new Date(selectedMeeting.date).toLocaleDateString('en-KE')}\nTime: ${selectedMeeting.time}\nVenue: ${selectedMeeting.venue}\n\nAgenda:\n${selectedMeeting.agenda.map((a, i) => `${i+1}. ${a}`).join('\n')}`))} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
                   📤 Share via WhatsApp
                 </button>
-                <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
+                <button onClick={() => window.print()} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 rounded-xl transition-colors">
                   📄 Download PDF
                 </button>
               </div>
@@ -301,6 +305,58 @@ export default function Meetings() {
                 📅 Schedule & Notify Members
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attendance Modal */}
+      {attendanceMeeting && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-black text-gray-900 text-lg">✅ Take Attendance</h2>
+              <button onClick={() => setAttendanceMeeting(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">{attendanceMeeting.title} — {new Date(attendanceMeeting.date).toLocaleDateString('en-KE')}</p>
+            <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
+              {members.filter(m => m.status === 'active').map(m => {
+                const present = attendingIds.includes(m.id);
+                return (
+                  <label key={m.id} className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors ${present ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-100'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-700">{m.avatar}</div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{m.name}</p>
+                        <p className="text-xs text-gray-400">{m.phone}</p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={present}
+                      onChange={() => setAttendingIds(prev => present ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                      className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-sm text-gray-500 mb-4">
+              <span>Present: {attendingIds.length} / {members.filter(m => m.status === 'active').length}</span>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await updateMeeting(attendanceMeeting.id, { attendees: attendingIds, status: 'completed' });
+                  toast.success(`Attendance recorded for ${attendingIds.length} members`);
+                  setAttendanceMeeting(null);
+                } catch {
+                  toast.error('Failed to save attendance');
+                }
+              }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors"
+            >
+              ✅ Save Attendance
+            </button>
           </div>
         </div>
       )}

@@ -16,6 +16,9 @@ interface DataContextType {
   addContribution: (data: { memberId: string; amount: number; type: Contribution['type']; status: Contribution['status']; date: string; memberName: string; mpesaRef?: string }) => Promise<Contribution>;
   addLoan: (data: { memberId: string; amount: number; interest: number; purpose: string; memberName: string }) => Promise<Loan>;
   addMeeting: (data: { title: string; date: string; time: string; venue: string; agenda: string[] }) => Promise<Meeting>;
+  updateMeeting: (id: string, data: Partial<Meeting>) => Promise<void>;
+  updateChama: (data: Record<string, unknown>) => Promise<void>;
+  deleteChama: () => Promise<void>;
   updateMember: (id: string, data: Partial<Member>) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
   updateContribution: (id: string, data: Partial<Contribution>) => Promise<void>;
@@ -430,6 +433,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return newLoan;
   };
 
+  const updateMeetingFn = async (id: string, data: Partial<Meeting>) => {
+    if (!chamaId) return;
+    setMeetings(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
+    const dbData: Record<string, unknown> = {};
+    if (data.title !== undefined) dbData.title = data.title;
+    if (data.date !== undefined) dbData.date = data.date;
+    if (data.time !== undefined) dbData.time = data.time;
+    if (data.venue !== undefined) dbData.venue = data.venue;
+    if (data.status !== undefined) dbData.status = data.status;
+    if (data.attendees !== undefined) dbData.attendees = data.attendees;
+    if (data.agenda !== undefined) dbData.agenda = data.agenda;
+    if (data.minutes !== undefined) dbData.minutes = data.minutes;
+    const { error } = await supabase.from('meetings').update(dbData).eq('id', id).eq('chama_id', chamaId);
+    if (error) {
+      refresh();
+      throw error;
+    }
+    try { await addAuditLog('meeting.updated', `Updated meeting "${data.title || id}"`); } catch {}
+  };
+
+  const updateChamaFn = async (data: Record<string, unknown>) => {
+    if (!chamaId) return;
+    const { error } = await supabase.from('chamas').update(data).eq('id', chamaId);
+    if (error) throw error;
+    await refresh();
+    try { await addAuditLog('chama.updated', `Updated chama settings`); } catch {}
+  };
+
+  const deleteChamaFn = async () => {
+    if (!chamaId) return;
+    const confirmed = window.confirm('Are you sure? This will permanently delete all chama data.');
+    if (!confirmed) return;
+    const { error } = await supabase.from('chamas').delete().eq('id', chamaId);
+    if (error) throw error;
+    window.location.href = '/login';
+  };
+
   const addMeetingFn = async (input: { title: string; date: string; time: string; venue: string; agenda: string[] }) => {
     const id = crypto.randomUUID();
 
@@ -479,6 +519,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         addContribution: addContributionFn,
         addLoan: addLoanFn,
         addMeeting: addMeetingFn,
+        updateMeeting: updateMeetingFn,
+        updateChama: updateChamaFn,
+        deleteChama: deleteChamaFn,
         updateMember: updateMemberFn,
         deleteMember: deleteMemberFn,
         updateContribution: updateContributionFn,
