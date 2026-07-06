@@ -3,6 +3,7 @@ import { useData } from '../data/context';
 import { supabase } from '../data/supabase';
 import { useAuth } from '../data/auth-context';
 import { DEFAULT_MONTHLY_CONTRIBUTION, DEFAULT_INTEREST_RATE } from '../data/constants';
+import { downloadJSON } from '../data/export-utils';
 
 interface NotificationSettings {
   contribution_reminders: boolean;
@@ -363,11 +364,7 @@ export default function Settings() {
                   <button onClick={async () => {
                     setConfirming(null);
                     try {
-                      const exportData = { chama, members, contributions, loans, meetings, exportedAt: new Date().toISOString() };
-                      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a'); a.href = url; a.download = `chama-export-${new Date().toISOString().slice(0, 10)}.json`; a.click();
-                      URL.revokeObjectURL(url);
+                      downloadJSON({ chama, members, contributions, loans, meetings, exportedAt: new Date().toISOString() }, 'chama-export');
                       setToast('Export downloaded');
                     } catch { setToast('Export failed'); }
                     setTimeout(() => setToast(null), 3000);

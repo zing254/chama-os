@@ -6,6 +6,7 @@ import { useAuth } from '../data/auth-context';
 import { useToast } from '../data/toast-context';
 import { DEFAULT_INTEREST_RATE, DEFAULT_MONTHLY_CONTRIBUTION } from '../data/constants';
 import { sendSMS, sendWhatsApp } from '../data/notifications-helper';
+import { downloadCSV } from '../data/export-utils';
 import AuditorPanel from './features/AuditorPanel';
 
 function formatKsh(n: number) {
@@ -240,7 +241,17 @@ export default function Dashboard() {
                 { icon: '💳', label: 'Record M-Pesa', cls: 'bg-green-600 text-white', onClick: () => setShowRecord(true) },
                 { icon: '📝', label: 'New Loan', cls: 'bg-blue-600 text-white', onClick: () => navigate('/loans') },
                 { icon: '📨', label: 'Send Reminder', cls: 'bg-orange-500 text-white', onClick: () => members.forEach(m => sendSMS(m.phone, `Dear ${m.name}, this is a reminder about your upcoming chama contribution. Please ensure timely payment.`)) },
-                { icon: '📄', label: 'Generate Report', cls: 'bg-purple-600 text-white', onClick: () => navigate('/meetings') },
+                { icon: '📄', label: 'Generate Report', cls: 'bg-purple-600 text-white', onClick: () => {
+                  downloadCSV([
+                    { metric: 'Total Members', value: members.length },
+                    { metric: 'Active Members', value: activeMembers },
+                    { metric: 'Total Paid', value: `KSh ${totalPaid.toLocaleString()}` },
+                    { metric: 'Active Loans', value: activeLoans.length },
+                    { metric: 'Outstanding Balance', value: `KSh ${totalOutstanding.toLocaleString()}` },
+                    { metric: 'Overdue Loans', value: overdueLoans.length },
+                    { metric: 'Upcoming Meetings', value: upcomingMeeting ? 1 : 0 },
+                  ], 'chama-report');
+                } },
               ].map(({ icon, label, cls, onClick }) => (
                 <button key={label} onClick={onClick} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 ${cls}`}>
                   <span>{icon}</span><span>{label}</span>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../data/supabase';
 import { useAuth } from '../../data/auth-context';
 import { useToast } from '../../data/toast-context';
+import { downloadJSON, downloadBlob } from '../../data/export-utils';
 
 type LogLevel = 'all' | 'info' | 'warning' | 'error';
 
@@ -100,10 +101,7 @@ export default function AdminTools() {
             <button
               onClick={() => {
                 const csv = ['Level,Action,Details,Date', ...filteredLogs.map(l => `"${l.level}","${l.action.replace(/"/g, '""')}","${l.details.replace(/"/g, '""')}","${l.created_at}"`)].join('\n');
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
-                URL.revokeObjectURL(url);
+                downloadBlob(csv, `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv');
                 toast.success('Logs exported');
               }}
               className="text-sm text-green-600 hover:underline"
@@ -179,11 +177,7 @@ export default function AdminTools() {
             </div>
             <button
               onClick={() => {
-                const backup = { timestamp: new Date().toISOString(), chamaId, auditLogs: logs };
-                const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = `backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
-                URL.revokeObjectURL(url);
+                downloadJSON({ timestamp: new Date().toISOString(), chamaId, auditLogs: logs }, 'backup');
                 toast.success('Backup downloaded successfully');
               }}
               className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl"
