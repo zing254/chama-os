@@ -1,6 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../data/auth-context';
+
+function RedirectToDashboard() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
+    return () => clearTimeout(timer);
+  }, [navigate]);
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full text-center">
+        <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700">
+          <div className="text-6xl mb-4">🎉</div>
+          <h2 className="text-2xl font-bold text-white mb-4">Account created!</h2>
+          <p className="text-gray-400 mb-6">
+            Your chama is ready. Redirecting to your dashboard...
+          </p>
+        </div>
+        <p className="text-center text-gray-500 text-sm mt-6">
+          © 2026 ChamaOS Ltd. Reg. No. KE/2024/78432
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -63,29 +89,7 @@ export default function Signup() {
   };
 
   if (success) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center">
-          <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700">
-            <div className="text-6xl mb-4">📧</div>
-            <h2 className="text-2xl font-bold text-white mb-4">Check your email!</h2>
-            <p className="text-gray-400 mb-6">
-              We've sent a verification link to <span className="text-white font-semibold">{email}</span>.
-              Click the link to activate your account.
-            </p>
-            <p className="text-gray-500 text-sm">
-              Didn't receive the email? Check your spam folder or{' '}
-              <Link to="/signup" className="text-green-400 hover:text-green-300">
-                try again
-              </Link>
-            </p>
-          </div>
-          <p className="text-center text-gray-500 text-sm mt-6">
-            © 2026 ChamaOS Ltd. Reg. No. KE/2024/78432
-          </p>
-        </div>
-      </div>
-    );
+    return <RedirectToDashboard />;
   }
 
   return (
