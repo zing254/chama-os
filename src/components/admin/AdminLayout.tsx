@@ -5,14 +5,16 @@ import AdminDashboard from './AdminDashboard';
 import UserManagement from './UserManagement';
 import AdminTools from './AdminTools';
 import AdminReports from './AdminReports';
+import AdminChamaSettings from './AdminChamaSettings';
+import AdminSystemSettings from './AdminSystemSettings';
 
 const adminPages: Record<string, React.ReactNode> = {
   'admin-dashboard': <AdminDashboard />,
   'users': <UserManagement />,
   'tools': <AdminTools />,
   'analytics': <AdminReports />,
-  'chama-admin': <div className="p-6 text-center text-gray-500">Chama Settings (Coming Soon)</div>,
-  'settings': <div className="p-6 text-center text-gray-500">System Settings (Coming Soon)</div>,
+  'chama-admin': <AdminChamaSettings />,
+  'settings': <AdminSystemSettings />,
 };
 
 export default function AdminLayout() {
