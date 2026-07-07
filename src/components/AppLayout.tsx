@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { useData } from '../data/context';
 import { useAuth } from '../data/auth-context';
+import { useI18n } from '../data/i18n-context';
 import Dashboard from './Dashboard';
 import Members from './Members';
 import Contributions from './Contributions';
@@ -16,25 +17,25 @@ import LanguageSwitcher from './LanguageSwitcher';
 type Page = 'dashboard' | 'members' | 'contributions' | 'loans' | 'meetings' | 'analytics' | 'settings' | 'pricing';
 
 const navItems: { id: Page; label: string; icon: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'members', label: 'Members', icon: '👥' },
-  { id: 'contributions', label: 'Contributions', icon: '💰' },
-  { id: 'loans', label: 'Loans', icon: '🏦' },
-  { id: 'meetings', label: 'Meetings', icon: '📅' },
-  { id: 'analytics', label: 'Analytics', icon: '📈' },
-  { id: 'pricing', label: 'Upgrade', icon: '⭐' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
+  { id: 'dashboard', label: 'dashboard', icon: '📊' },
+  { id: 'members', label: 'members', icon: '👥' },
+  { id: 'contributions', label: 'contributions', icon: '💰' },
+  { id: 'loans', label: 'loans', icon: '🏦' },
+  { id: 'meetings', label: 'meetings', icon: '📅' },
+  { id: 'analytics', label: 'analytics', icon: '📈' },
+  { id: 'pricing', label: 'pricing', icon: '⭐' },
+  { id: 'settings', label: 'settings', icon: '⚙️' },
 ];
 
 const pageTitles: Record<Page, string> = {
-  dashboard: 'Dashboard',
-  members: 'Members',
-  contributions: 'Contributions',
-  loans: 'Loans',
-  meetings: 'Meetings',
-  analytics: 'Analytics',
-  pricing: 'Upgrade Plan',
-  settings: 'Settings',
+  dashboard: 'dashboard',
+  members: 'members',
+  contributions: 'contributions',
+  loans: 'loans',
+  meetings: 'meetings',
+  analytics: 'analytics',
+  pricing: 'pricing',
+  settings: 'settings',
 };
 
 function PageContent({ page }: { page: Page }) {
@@ -57,6 +58,7 @@ export default function AppLayout() {
   const location = useLocation();
   const { members, chama, loading } = useData();
   const { user, signOut } = useAuth();
+  const { t } = useI18n();
 
   const currentPage = (location.pathname.slice(1).split('/')[0] || 'dashboard') as Page;
   const isValidPage = navItems.some(item => item.id === currentPage);
@@ -88,7 +90,7 @@ export default function AppLayout() {
         <div className="flex flex-col h-full">
           <div className="p-4 border-b border-gray-100">
             <h1 className="text-xl font-black text-green-600">ChamaOS</h1>
-            <p className="text-xs text-gray-500 mt-1">{chama?.name || 'Your Chama'}</p>
+            <p className="text-xs text-gray-500 mt-1">{chama?.name || t.dashboard}</p>
           </div>
 
           <nav className="flex-1 p-3 space-y-1">
@@ -104,7 +106,7 @@ export default function AppLayout() {
                 )}
               >
                 <span>{item.icon}</span>
-                <span className="text-sm">{item.label}</span>
+                <span className="text-sm">{t[item.label as keyof typeof t]}</span>
               </button>
             ))}
           </nav>
@@ -115,14 +117,14 @@ export default function AppLayout() {
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 hover:bg-gray-50"
             >
               <span>🔧</span>
-              <span className="text-sm">Admin Panel</span>
+              <span className="text-sm">{t.adminPanel}</span>
             </button>
             <button
               onClick={handleSignOut}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-50"
             >
               <span>🚪</span>
-              <span className="text-sm">Sign Out</span>
+              <span className="text-sm">{t.logout}</span>
             </button>
           </div>
         </div>
@@ -150,7 +152,7 @@ export default function AppLayout() {
             <div className="flex items-center gap-2">
               <span className="text-gray-400 text-sm hidden sm:block">ChamaOS</span>
               <span className="text-gray-400 text-sm hidden sm:block">/</span>
-              <span className="font-bold text-gray-900 text-sm">{pageTitles[currentPage]}</span>
+              <span className="font-bold text-gray-900 text-sm">{t[pageTitles[currentPage] as keyof typeof t]}</span>
             </div>
           </div>
 

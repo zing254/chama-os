@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../data/context';
 import { useAuth } from '../../data/auth-context';
+import { useI18n } from '../../data/i18n-context';
 
 export default function MemberDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { members, contributions, loans, meetings } = useData();
+  const { t } = useI18n();
   const memberId = user?.memberId;
 
   const myProfile = members.find(m => m.id === memberId);
@@ -23,34 +25,34 @@ export default function MemberDashboard() {
           <h1 className="text-2xl font-black text-gray-900">
             Welcome back, {myProfile?.name?.split(' ')[0] || 'Member'} 👋
           </h1>
-          <p className="text-gray-500 text-sm mt-0.5">Your personal chama overview</p>
+          <p className="text-gray-500 text-sm mt-0.5">{t.yourPersonalChamaOverview || 'Your personal chama overview'}</p>
         </div>
         <div className="flex gap-2">
           <button className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all shadow-sm">
-            + Record Payment
+            + {t.recordPayment}
           </button>
         </div>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Total Contributions"
+          label={t.contributions}
           value={`KSh ${myTotalContributions.toLocaleString()}`}
-          sub={`${myContributions.length} payments`}
+          sub={`${myContributions.length} ${t.repayment}`}
           icon="💰"
           color="from-green-500 to-emerald-600"
           textColor="text-green-50"
         />
         <StatCard
-          label="Active Loans"
+          label={t.activeLoans}
           value={activeLoans.length.toString()}
-          sub={`KSh ${activeLoans.reduce((s, l) => s + l.balance, 0).toLocaleString()} outstanding`}
+          sub={`KSh ${activeLoans.reduce((s, l) => s + l.balance, 0).toLocaleString()} ${t.loansOutstanding}`}
           icon="🏦"
           color="from-orange-500 to-orange-700"
           textColor="text-orange-50"
         />
         <StatCard
-          label="My Shares"
+          label={t.myShares}
           value={myShares.toString()}
           sub={myProfile?.role ? `Role: ${myProfile.role}` : ''}
           icon="📊"
@@ -58,9 +60,9 @@ export default function MemberDashboard() {
           textColor="text-blue-50"
         />
         <StatCard
-          label="Upcoming Meetings"
+          label={t.upcomingMeeting}
           value={upcomingMeeting ? '1' : '0'}
-          sub={upcomingMeeting?.title || 'No meetings scheduled'}
+          sub={upcomingMeeting?.title || t.noMeetingsScheduled}
           icon="📅"
           color="from-purple-500 to-purple-700"
           textColor="text-purple-50"
@@ -71,9 +73,9 @@ export default function MemberDashboard() {
         <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
           <span className="text-2xl">⚠️</span>
           <div>
-            <div className="font-bold text-orange-800">Active Loan Reminder</div>
+            <div className="font-bold text-orange-800">{t.activeLoanReminder}</div>
             <div className="text-sm text-orange-700 mt-0.5">
-              You have {activeLoans.length} active loan(s). Total outstanding: KSh {activeLoans.reduce((s, l) => s + l.balance, 0).toLocaleString()}
+              {t.youHave} {activeLoans.length} {t.activeLoans}. {t.totalOutstanding}: KSh {activeLoans.reduce((s, l) => s + l.balance, 0).toLocaleString()}
             </div>
           </div>
         </div>
@@ -82,13 +84,13 @@ export default function MemberDashboard() {
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900">My Recent Contributions</h3>
+            <h3 className="font-bold text-gray-900">{t.myRecentContributions}</h3>
             <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full">
-              {myContributions.filter(c => c.status === 'paid').length} paid
+              {myContributions.filter(c => c.status === 'paid').length} {t.paid}
             </span>
           </div>
           {myContributions.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-8">No contributions yet</p>
+            <p className="text-gray-400 text-sm text-center py-8">{t.noContributionsYet}</p>
           ) : (
             <div className="space-y-2">
               {myContributions.slice(0, 6).map(c => (
@@ -112,27 +114,27 @@ export default function MemberDashboard() {
         </div>
 
         <div className="space-y-4">
-          {upcomingMeeting && (
+{upcomingMeeting && (
             <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 text-white">
-              <div className="text-blue-200 text-xs font-bold uppercase tracking-widest mb-2">📅 Next Meeting</div>
+              <div className="text-blue-200 text-xs font-bold uppercase tracking-widest mb-2">📅 {t.nextMeeting}</div>
               <div className="font-black text-lg">{upcomingMeeting.title}</div>
               <div className="text-blue-200 text-sm mt-1">{upcomingMeeting.date} · {upcomingMeeting.time}</div>
               <div className="text-blue-200 text-sm">{upcomingMeeting.venue}</div>
               <div className="mt-4 flex gap-2">
                 <button className="bg-white text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
-                  View Agenda
+                  {t.viewAgenda}
                 </button>
                 <button className="bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-colors">
-                  Confirm Attendance
+                  {t.confirmAttendance}
                 </button>
               </div>
             </div>
           )}
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <h3 className="font-bold text-gray-900 mb-3">My Loans</h3>
+            <h3 className="font-bold text-gray-900 mb-3">{t.myLoans}</h3>
             {myLoans.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">No loans taken yet</p>
+              <p className="text-gray-400 text-sm text-center py-4">{t.noLoansTakenYet}</p>
             ) : (
               <div className="space-y-2">
                 {myLoans.slice(0, 4).map(l => (
@@ -157,13 +159,13 @@ export default function MemberDashboard() {
           </div>
 
           <div className="bg-gradient-to-br from-gray-50 to-green-50 border border-green-100 rounded-2xl p-4">
-            <h3 className="font-bold text-gray-800 text-sm mb-3">Quick Actions</h3>
+            <h3 className="font-bold text-gray-800 text-sm mb-3">{t.quickActions}</h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { icon: '💳', label: 'Make Payment', cls: 'bg-green-600 text-white', onClick: () => navigate('/meetings') },
-                { icon: '📝', label: 'Apply Loan', cls: 'bg-blue-600 text-white', onClick: () => navigate('/loans') },
-                { icon: '📅', label: 'View Meetings', cls: 'bg-purple-600 text-white', onClick: () => navigate('/meetings') },
-                { icon: '📄', label: 'My Statement', cls: 'bg-orange-500 text-white', onClick: () => navigate('/loans?tab=contributions') },
+                { icon: '💳', label: t.makePayment, cls: 'bg-green-600 text-white', onClick: () => navigate('/meetings') },
+                { icon: '📝', label: t.applyLoan, cls: 'bg-blue-600 text-white', onClick: () => navigate('/loans') },
+                { icon: '📅', label: t.viewMeetings, cls: 'bg-purple-600 text-white', onClick: () => navigate('/meetings') },
+                { icon: '📄', label: t.myStatement, cls: 'bg-orange-500 text-white', onClick: () => navigate('/loans?tab=contributions') },
               ].map(({ icon, label, cls, onClick }) => (
                 <button key={label} onClick={onClick} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 ${cls}`}>
                   <span>{icon}</span><span>{label}</span>

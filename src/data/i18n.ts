@@ -95,6 +95,25 @@ export interface Translations {
   overdueLoans: string;
   fundGrowth: string;
   contributionProgress: string;
+  // Member Dashboard
+  yourPersonalChamaOverview: string;
+  activeLoanReminder: string;
+  youHave: string;
+  totalOutstanding: string;
+  myRecentContributions: string;
+  noContributionsYet: string;
+  nextMeeting: string;
+  confirmAttendance: string;
+  quickActions: string;
+  makePayment: string;
+  viewMeetings: string;
+  myStatement: string;
+  myShares: string;
+  myLoans: string;
+  noLoansTakenYet: string;
+  noMeetingsScheduled: string;
+  myProfile: string;
+  payments: string;
   
   // Members
   addMember: string;
@@ -307,10 +326,10 @@ export const translations: Record<Language, Translations> = {
     reports: 'Analytics',
     systemSettings: 'System Settings',
     
-    // Dashboard
-    goodMorning: 'Good morning',
-    goodAfternoon: 'Good afternoon',
-    goodEvening: 'Good evening',
+// Dashboard
+    goodMorning: 'Good Morning',
+    goodAfternoon: 'Good Afternoon',
+    goodEvening: 'Good Evening',
     totalFund: 'Total Fund',
     activeMembers: 'Active Members',
     loansOutstanding: 'Loans Outstanding',
@@ -319,8 +338,27 @@ export const translations: Record<Language, Translations> = {
     topContributors: 'Top Contributors',
     recentActivity: 'Recent Activity',
     overdueLoans: 'Overdue Loans',
-    fundGrowth: 'Fund Growth Trend',
+    fundGrowth: 'Fund Growth',
     contributionProgress: 'Contribution Progress',
+    // Member Dashboard
+    yourPersonalChamaOverview: 'Your personal chama overview',
+    activeLoanReminder: 'Active Loan Reminder',
+    youHave: 'You have',
+    totalOutstanding: 'Total Outstanding',
+    myRecentContributions: 'My Recent Contributions',
+    noContributionsYet: 'No contributions yet',
+    nextMeeting: 'Next Meeting',
+    confirmAttendance: 'Confirm Attendance',
+    quickActions: 'Quick Actions',
+    makePayment: 'Make Payment',
+    viewMeetings: 'View Meetings',
+    myStatement: 'My Statement',
+    myShares: 'My Shares',
+    myLoans: 'My Loans',
+    noLoansTakenYet: 'No loans taken yet',
+    noMeetingsScheduled: 'No meetings scheduled',
+    myProfile: 'My Profile',
+    payments: 'Payments',
     
     // Members
     addMember: 'Add Member',
@@ -545,8 +583,25 @@ export const translations: Record<Language, Translations> = {
     overdueLoans: 'Mikopo iliyochelewa',
     fundGrowth: 'Mwenendo wa Pesa',
     contributionProgress: 'Mwenendo wa Mchango',
-    
-    // Members
+    // Member Dashboard
+    yourPersonalChamaOverview: 'Maelezo ya binafsi ya chama yako',
+    activeLoanReminder: 'Kumbusho la Mkopo Uliopo',
+    youHave: 'Una',
+    totalOutstanding: 'Jumla isiyolipwa',
+    myRecentContributions: 'Mchango Wangu wa Karibuni',
+    noContributionsYet: 'Hakuna chango bado',
+    nextMeeting: 'Mkutano Ujao',
+    confirmAttendance: 'Thibitisha Uhudhuria',
+    quickActions: 'Vitendo Vya Haraka',
+    makePayment: 'Lipa',
+    viewMeetings: 'Tazama Mikutano',
+    myStatement: 'Ripoti Yangu',
+    myShares: 'Sehemu Zangu',
+    myLoans: 'Mikopo Yangu',
+    noLoansTakenYet: 'Hakuna mikopo yaliyochukuliwa bado',
+    noMeetingsScheduled: 'Hakuna mikutano iliyopangwa',
+    myProfile: 'Wasifu Wangu',
+    payments: 'Malipo',
     addMember: 'Ongeza Mwanachama',
     editMember: 'Hariri Mwanachama',
     deleteMember: 'Futa Mwanachama',

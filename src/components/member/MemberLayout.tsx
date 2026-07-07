@@ -2,28 +2,29 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../data/auth-context';
 import { useData } from '../../data/context';
+import { useI18n } from '../../data/i18n-context';
 import MemberDashboard from './MemberDashboard';
 import LanguageSwitcher from '../LanguageSwitcher';
 
 type MemberPage = 'dashboard' | 'contributions' | 'loans' | 'meetings' | 'settings';
 
 const navItems: { id: MemberPage; label: string; icon: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'contributions', label: 'My Contributions', icon: '💰' },
-  { id: 'loans', label: 'My Loans', icon: '🏦' },
-  { id: 'meetings', label: 'Meetings', icon: '📅' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
+  { id: 'dashboard', label: 'dashboard', icon: '📊' },
+  { id: 'contributions', label: 'contributions', icon: '💰' },
+  { id: 'loans', label: 'loans', icon: '🏦' },
+  { id: 'meetings', label: 'meetings', icon: '📅' },
+  { id: 'settings', label: 'settings', icon: '⚙️' },
 ];
 
 const pageTitles: Record<string, string> = {
-  dashboard: 'Dashboard',
-  contributions: 'My Contributions',
-  loans: 'My Loans',
-  meetings: 'Meetings',
-  settings: 'Settings',
+  dashboard: 'dashboard',
+  contributions: 'contributions',
+  loans: 'loans',
+  meetings: 'meetings',
+  settings: 'settings',
 };
 
-function MemberContributions({ memberId }: { memberId?: string }) {
+function MemberContributions({ memberId, t }: { memberId?: string; t: any }) {
   const { contributions } = useData();
   const mine = contributions.filter(c => c.memberId === memberId);
   const paid = mine.filter(c => c.status === 'paid').reduce((s, c) => s + c.amount, 0);
@@ -32,13 +33,13 @@ function MemberContributions({ memberId }: { memberId?: string }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">My Contributions</h1>
-          <p className="text-gray-500 text-sm">Total paid: {`KSh ${paid.toLocaleString()}`}</p>
+          <h1 className="text-2xl font-black text-gray-900">{t.contributions}</h1>
+          <p className="text-gray-500 text-sm">{t.totalPaid || 'Total paid'}: {`KSh ${paid.toLocaleString()}`}</p>
         </div>
       </div>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {mine.length === 0 ? (
-          <p className="text-gray-400 text-sm text-center py-12">No contributions yet</p>
+          <p className="text-gray-400 text-sm text-center py-12">{t.noContributions || 'No contributions yet'}</p>
         ) : (
           <div className="divide-y divide-gray-100">
             {mine.map(c => (
@@ -63,7 +64,7 @@ function MemberContributions({ memberId }: { memberId?: string }) {
   );
 }
 
-function MemberLoans({ memberId }: { memberId?: string }) {
+function MemberLoans({ memberId, t }: { memberId?: string; t: any }) {
   const { loans } = useData();
   const mine = loans.filter(l => l.memberId === memberId);
 
@@ -71,13 +72,13 @@ function MemberLoans({ memberId }: { memberId?: string }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">My Loans</h1>
-          <p className="text-gray-500 text-sm">{mine.length} loan(s) taken</p>
+          <h1 className="text-2xl font-black text-gray-900">{t.loans}</h1>
+          <p className="text-gray-500 text-sm">{mine.length} {t.loanHistory || 'loan(s) taken'}</p>
         </div>
       </div>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {mine.length === 0 ? (
-          <p className="text-gray-400 text-sm text-center py-12">No loans taken yet</p>
+          <p className="text-gray-400 text-sm text-center py-12">{t.noLoans || 'No loans taken yet'}</p>
         ) : (
           <div className="divide-y divide-gray-100">
             {mine.map(l => (
@@ -92,7 +93,7 @@ function MemberLoans({ memberId }: { memberId?: string }) {
                 </div>
                 <div className="text-xs text-gray-400">{l.purpose} · Balance: {`KSh ${l.balance.toLocaleString()}`}</div>
                 {l.repayments.length > 0 && (
-                  <div className="mt-2 text-xs text-gray-400">{l.repayments.length} repayment(s) made</div>
+                  <div className="mt-2 text-xs text-gray-400">{l.repayments.length} {t.repayment || 'repayment'}(s) made</div>
                 )}
               </div>
             ))}
@@ -103,7 +104,7 @@ function MemberLoans({ memberId }: { memberId?: string }) {
   );
 }
 
-function MemberMeetings() {
+function MemberMeetings({ t }: { t: any }) {
   const { meetings } = useData();
   const upcoming = meetings.filter(m => m.status === 'upcoming');
   const past = meetings.filter(m => m.status !== 'upcoming');
@@ -112,13 +113,13 @@ function MemberMeetings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Meetings</h1>
-          <p className="text-gray-500 text-sm">{meetings.length} total meetings</p>
+          <h1 className="text-2xl font-black text-gray-900">{t.meetings}</h1>
+          <p className="text-gray-500 text-sm">{meetings.length} {t.total || 'total'} {t.meetings.toLowerCase() || 'meetings'}</p>
         </div>
       </div>
       {upcoming.length > 0 && (
         <div>
-          <h2 className="font-bold text-gray-700 text-sm mb-3 uppercase tracking-wider">Upcoming</h2>
+          <h2 className="font-bold text-gray-700 text-sm mb-3 uppercase tracking-wider">{t.upcoming}</h2>
           <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 text-white">
             <div className="font-black text-lg">{upcoming[0].title}</div>
             <div className="text-blue-200 text-sm mt-1">{upcoming[0].date} · {upcoming[0].time}</div>
@@ -128,7 +129,7 @@ function MemberMeetings() {
       )}
       {past.length > 0 && (
         <div>
-          <h2 className="font-bold text-gray-700 text-sm mb-3 uppercase tracking-wider mt-6">Past Meetings</h2>
+          <h2 className="font-bold text-gray-700 text-sm mb-3 uppercase tracking-wider mt-6">{t.pastMeetings || 'Past Meetings'}</h2>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100">
             {past.map(m => (
               <div key={m.id} className="p-4 flex items-center justify-between">
@@ -146,33 +147,27 @@ function MemberMeetings() {
   );
 }
 
-function MemberSettings() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
-  };
+function MemberSettings({ t, onSignOut }: { t: any; onSignOut: () => void }) {
+  const { user } = useAuth();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900">Settings</h1>
-        <p className="text-gray-500 text-sm">Your account settings</p>
+        <h1 className="text-2xl font-black text-gray-900">{t.settings}</h1>
+        <p className="text-gray-500 text-sm">{t.yourAccountSettings || 'Your account settings'}</p>
       </div>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
-        <h2 className="font-bold text-gray-900 text-lg">Account</h2>
+        <h2 className="font-bold text-gray-900 text-lg">{t.account}</h2>
         <div>
-          <label className="text-sm font-semibold text-gray-700 block mb-1">Email</label>
+          <label className="text-sm font-semibold text-gray-700 block mb-1">{t.email}</label>
           <input type="email" value={user?.email || ''} readOnly className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-500 bg-gray-50" />
         </div>
         <div className="pt-4 border-t border-gray-100">
           <button
-            onClick={handleSignOut}
+            onClick={onSignOut}
             className="px-6 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white transition-all"
           >
-            🚪 Sign Out
+            🚪 {t.logout}
           </button>
         </div>
       </div>
@@ -184,6 +179,7 @@ export default function MemberLayout() {
   const [page, setPage] = useState<MemberPage>('dashboard');
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const handleSignOut = async () => {
     await signOut();
@@ -193,10 +189,10 @@ export default function MemberLayout() {
   const renderPage = () => {
     switch (page) {
       case 'dashboard': return <MemberDashboard />;
-      case 'contributions': return <MemberContributions memberId={user?.memberId} />;
-      case 'loans': return <MemberLoans memberId={user?.memberId} />;
-      case 'meetings': return <MemberMeetings />;
-      case 'settings': return <MemberSettings />;
+      case 'contributions': return <MemberContributions t={t} memberId={user?.memberId} />;
+      case 'loans': return <MemberLoans t={t} memberId={user?.memberId} />;
+      case 'meetings': return <MemberMeetings t={t} />;
+      case 'settings': return <MemberSettings t={t} onSignOut={handleSignOut} />;
     }
   };
 
@@ -205,7 +201,7 @@ export default function MemberLayout() {
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-100">
           <h1 className="text-xl font-black text-green-600">ChamaOS</h1>
-          <p className="text-xs text-gray-500 mt-1">Member Portal</p>
+          <p className="text-xs text-gray-500 mt-1">{t.settings}</p>
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
@@ -220,7 +216,7 @@ export default function MemberLayout() {
               }`}
             >
               <span>{item.icon}</span>
-              <span className="text-sm">{item.label}</span>
+              <span className="text-sm">{t[item.label as keyof typeof t]}</span>
             </button>
           ))}
         </nav>
@@ -231,7 +227,7 @@ export default function MemberLayout() {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-50"
           >
             <span>🚪</span>
-            <span className="text-sm">Sign Out</span>
+            <span className="text-sm">{t.logout}</span>
           </button>
         </div>
       </aside>
@@ -241,7 +237,7 @@ export default function MemberLayout() {
           <div className="flex items-center gap-2">
             <span className="text-gray-400 text-sm">ChamaOS</span>
             <span className="text-gray-400 text-sm">/</span>
-            <span className="font-bold text-gray-900 text-sm">{pageTitles[page]}</span>
+            <span className="font-bold text-gray-900 text-sm">{t[pageTitles[page] as keyof typeof t]}</span>
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher variant="icon" />
